@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS leaderboard (
+  team_id VARCHAR(100) NOT NULL,
+  point BIGINT NOT NULL DEFAULT 0,
+  after_result INT UNSIGNED NOT NULL DEFAULT 0,
+  updated_by VARCHAR(120) NULL,
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (team_id),
+  KEY idx_leaderboard_points (point, team_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
