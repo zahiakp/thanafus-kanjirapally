@@ -2,7 +2,6 @@ export const brandName = "Thanafus";
 export const accessCookieName = "thanafus-access";
 export const brandLogo = "/thanafus-logo.png";
 export const categoryMap: Record<string, string> = {
-  belowSubJunior: "BELOW SUB JUNIOR",
   subJunior: "SUB JUNIOR",
   junior: "JUNIOR",
   senior: "SENIOR",
