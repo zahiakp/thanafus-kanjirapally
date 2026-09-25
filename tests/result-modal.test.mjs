@@ -28,3 +28,15 @@ test("ResultCard tolerates missing data and normalizes numeric ranks", () => {
   assert.match(card, /No result is available for this program/);
   assert.doesNotMatch(card, /console\.log\(result\)/);
 });
+
+test('result order puts placements before grade-only entries without mutating input', async () => {
+  const ts = (await import('typescript')).default;
+  const code = ts.transpileModule(source('app/utils/resultOrder.ts'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const exports = {};
+  new Function('exports', code)(exports);
+  const entries = [{rank:'0',point:3},{rank:'2',point:8},{rank:'1',point:10},{rank:0,point:5},{rank:null,point:3}];
+  const sorted = exports.sortResultEntries(entries);
+  assert.deepEqual(sorted.map(row=>row.point), [10,8,5,3,3]);
+  assert.equal(entries[0].rank, '0');
+  assert.deepEqual(exports.sortResultEntries([]), []);
+});

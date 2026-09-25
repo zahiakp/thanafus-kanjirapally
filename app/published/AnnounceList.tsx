@@ -60,7 +60,7 @@ function AnnounceList() {
       }
       setDrop({
         program,
-        result: [...response.data].sort((a: any, b: any) => Number(a.rank || 0) - Number(b.rank || 0)),
+        result: response.data,
       });
     } catch (error: any) {
       console.error("Error fetching program result:", error);
