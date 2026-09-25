@@ -20,7 +20,7 @@ export function SideBar({
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState(false);
   const [password, setPassword] = useState(false);
-  console.log("data", data);
+
 
   return (
     <Sidebar

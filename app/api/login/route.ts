@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       if (!campus) return NextResponse.json({ success: false, message: "Account configuration is incomplete" }, { status: 403 });
     }
 
-    if (!isPasswordHash(String(user.password))) {
+    if (user.role !== "campus" && !isPasswordHash(String(user.password))) {
       try {
         await connection.execute("UPDATE access SET password = ? WHERE username = ?", [await hashPassword(password), username]);
       } catch (migrationError) {
