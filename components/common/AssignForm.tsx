@@ -108,17 +108,17 @@ function AssignForm({
         }).toString();
         let res:any;
         
-        if(assign.category =="hizoneGeneral"){
-          res = await getStudentsByteamIdwithCat(campus, queryParams, ['hizone']);
-        }else if(assign.category =="pzoneGeneral"){
-          res = await getStudentsByteamIdwithCat(campus, queryParams, ['pzone']);
-        }else if(assign.category =="dzoneGeneral"){
-          res = await getStudentsByteamIdwithCat(campus, queryParams, ['dzone']);
-        }else if(["general","ksa"].includes(assign.category)){
-          res = await getStudentsByteamIdwithCat(campus, queryParams, ['dzone','hizone','pzone']);
-        } else {
+        // if(assign.category =="hizoneGeneral"){
+        //   res = await getStudentsByteamIdwithCat(campus, queryParams, ['hizone']);
+        // }else if(assign.category =="pzoneGeneral"){
+        //   res = await getStudentsByteamIdwithCat(campus, queryParams, ['pzone']);
+        // }else if(assign.category =="dzoneGeneral"){
+        //   res = await getStudentsByteamIdwithCat(campus, queryParams, ['dzone']);
+        // }else if(["general","ksa"].includes(assign.category)){
+        //   res = await getStudentsByteamIdwithCat(campus, queryParams, ['dzone','hizone','pzone']);
+        // } else {
           res = await getStudentsByteamIdwithCat(campus, queryParams, assign.category);
-        }
+        // }
         
         if (res?.data) {
           
