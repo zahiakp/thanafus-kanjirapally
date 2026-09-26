@@ -16,7 +16,7 @@ const AdminLayout: React.FC<PropsWithChildren<AdminLayoutProps>> = (props:any) =
   </div>
 
   {/* Main Content with margin to accommodate fixed sidebar */}
-  <div className="md:ml-72 flex-1 pt-14 pb-16 md:py-0"> {/* 14 for header, 16 for footer */}
+  <div className="md:ml-72 min-w-0 flex-1 pt-14 pb-16 md:py-0"> {/* 14 for header, 16 for footer */}
     <div className="p-4 md:p-16 md:px-20 w-full">
       {props.children}
     </div>

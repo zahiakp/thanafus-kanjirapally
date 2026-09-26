@@ -1,10 +1,11 @@
 import React from "react";
+import { sortResultEntries } from "../../app/utils/resultOrder";
 import Modal from "./Modal";
 import { categoryMap } from "../../app/data/branding";
 
 function ResultCard({ close, data}: { close: any; data: any}) {
   const program = data?.program || {};
-  const result = Array.isArray(data?.result) ? data.result : [];
+  const result = sortResultEntries<any>(Array.isArray(data?.result) ? data.result : []);
 
 return (
     <Modal close={close}>

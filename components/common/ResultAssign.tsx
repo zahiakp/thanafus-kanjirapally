@@ -43,47 +43,10 @@ const [userRole, setUserRole] = useState(cookies[accessCookieName]?.role);
             throw new Error("Failed to save results.");
         }
 
-        // let orderResponse;
-
-        // if (program.order == null || program.order == 0) {
-        //     try {
-                
-        //        orderResponse = await getProgramsOrder();
-
-        //         if (!orderResponse.success) {
-        //             showMessage("Failed to fetch program order", "error");
-        //             throw new Error("Order data not found.");
-        //         }
-                
-        //         // Assign program order
-        //         const order = orderResponse.data;
-        //         console.log(order);
-        //         // if (isNaN(order)) {
-        //         //     throw new Error("Invalid order data received.");
-        //         // }
-
-        //         const orderAssignment = await AssignOrder(program.id, order ? parseInt(order) +1 : 1, proEndpoint);
-        //         if (!orderAssignment.success) {
-        //             showMessage("Failed to assign program order", "error");
-        //             throw new Error("Order assignment failed.");
-        //         }
-        //     } catch (error) {
-        //         console.error("Error fetching or assigning program order:", error);
-        //         throw error;
-        //     }
-        // }
-
-        // Update program status
-        const statusUpdate = await UpdateProgramStatus(program.id, type, proEndpoint);
-        if (!statusUpdate.success) {
-            showMessage("Error updating status", "error");
-            throw new Error("Failed to update program status.");
-        }
-
         // Show success message and refresh UI
         showMessage(`${program.name} status changed successfully`, "success");
         // router.refresh();
-        fetch();
+        await fetch();
         close();
     } catch (error: any) {
         console.error("Error updating results:", error);
@@ -107,13 +70,13 @@ const [userRole, setUserRole] = useState(cookies[accessCookieName]?.role);
         <div className="modal-action">
           <form method="dialog">
             <div className="grid grid-cols-2 items-center gap-3">
-              <button
+              <button type="button"
                 className="btn  bg-gradient-to-r from-red-400 to-red-600 md:w-56 text-white shadow-lg hover:shadow-none duration-300"
                 onClick={() => close()}
               >
                 Close
               </button>
-              <button disabled={loading}
+              <button type="button" disabled={loading}
                 className="btn shadow-lg disabled:grayscale disabled:text-white bg-gradient-to-r from-green-500 to-emerald-600 md:w-56 w-36 text-white hover:shadow-none duration-300"
                 onClick={()=>UpdateResult(program,type)}
               >{loading ? <>

@@ -6,6 +6,7 @@ import { IoSearchOutline } from "react-icons/io5";
 import IconInfoHexagon from "../../components/icon/icon-info-hexagon";
 import IndividualPoint from "./Indivitual"; // Renamed for clarity, assuming this is the refactored component
 import Group from "./Group";
+import TeamScoreBoard from "./TeamScoreBoard";
 
 // API Function Imports
 import {
@@ -28,7 +29,7 @@ function AnnounceList() {
   const user = cookies[accessCookieName] || {};
 
   // Main status to switch between tabs
-  const [status, setStatus] = useState<"program" | "campus" | "indivitual">("program");
+  const [status, setStatus] = useState<"program" | "campus" | "scoreboard" | "indivitual">("program");
 
   // State for "Program Results" tab
   const [reporting, setReporting] = useState<any[]>([]);
@@ -52,12 +53,14 @@ function AnnounceList() {
       return [
         { label: "Program Results", value: "program" },
         { label: "Team Points", value: "campus" },
+        ...(["admin", "announce"].includes(user.role) ? [{ label: "Team Score Board", value: "scoreboard" }] : []),
         { label: "Individual Points", value: "indivitual" },
       ];
     } else {
       return [
         { label: "Program Results", value: "program" },
         { label: "Team Points", value: "campus" },
+        ...(["admin", "announce"].includes(user.role) ? [{ label: "Team Score Board", value: "scoreboard" }] : []),
       ];
     }
   }, [user.role]);
@@ -128,7 +131,7 @@ function AnnounceList() {
       }
       setDrop({
         program,
-        result: [...response.data].sort((a: any, b: any) => Number(a.rank || 0) - Number(b.rank || 0)),
+        result: response.data,
       });
     } catch (error: any) {
       console.error("Error fetching program result:", error);
@@ -286,6 +289,8 @@ function AnnounceList() {
         return renderProgramResults();
       case 'campus':
         return <Group />;
+      case 'scoreboard':
+        return <TeamScoreBoard />;
       case 'indivitual':
         return <IndividualPoint/>; // Using the clear name
       default:
@@ -302,7 +307,7 @@ function AnnounceList() {
             {statusOptions.map((option) => (
               <button
                 key={option.value}
-                onClick={() => setStatus(option.value as "program" | "campus" | "indivitual")}
+                onClick={() => setStatus(option.value as "program" | "campus" | "scoreboard" | "indivitual")}
                 className={`px-4 py-2 ${status === option.value ? "bg-primary-600 text-white" : "border border-gray-300 text-gray-700 hover:bg-gray-50"} rounded-lg text-sm transition-colors font-medium`}
               >
                 {option.label}

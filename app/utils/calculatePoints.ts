@@ -1,4 +1,3 @@
-import { AssignResult } from "../judgement/func";
 import { pointsFor } from "./markingCriteria";
 
 interface Participant {
@@ -80,76 +79,14 @@ export const assignRanksAndCalculatePoints = (args: {
 export const generateFinalResults = async (
   args: GenerateResultsArgs
 ): Promise<boolean> => {
-  const { participants, program } = args;
-
-  const finishedParticipants = participants.filter(
-    (p) => p.status === "finished"
-  );
-
-  const calculatedParticipants = assignRanksAndCalculatePoints({
-    participants: finishedParticipants,
-    program,
+  const response = await fetch('/api/results/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ program: args.program.id }),
   });
-
-  // Keep records that scored either a passing grade weight or an event placement point
-  const gradedParticipants = calculatedParticipants.filter(
-    (p) => p.points && p.points > 0
-  );
-  console.log("Graded Participants to be saved:", gradedParticipants);
-
-  let allSavedSuccessfully = true;
-  
-  for (const participant of gradedParticipants) {
-    const { student, code, rank, grade, points } = participant;
-
-    const allStudentIds = student
-      .split(/[&,]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    if (allStudentIds.length === 0) {
-      console.warn(
-        `Skipping participant with an empty participant ID for code ${code}`
-      );
-      continue;
-    }
-
-    let studentIdsToSave: string[];
-
-    // Save under the primary representative identity if it's a structural group event
-    if (program.isGroup === 1) {
-      studentIdsToSave = [allStudentIds[0]];
-    } else {
-      studentIdsToSave = allStudentIds;
-    }
-
-    for (const studentId of studentIdsToSave) {
-      try {
-        console.log(
-          `Saving result for: ${studentId}, Rank: ${rank}, Grade: ${grade}, Points: ${points}`
-        );
-        const saveResult = await AssignResult(
-          code,
-          studentId,
-          program.id,
-          String(rank!),
-          grade,
-          String(points!)
-        );
-
-        if (!saveResult.success) {
-          console.error(`Failed to save result for participant ${studentId}`);
-          allSavedSuccessfully = false;
-        }
-      } catch (error: any) {
-        console.error(
-          `Error saving result for participant ${studentId}:`,
-          error.message
-        );
-        allSavedSuccessfully = false;
-      }
-    }
+  const result = await response.json().catch(() => null);
+  if (!response.ok || result?.success !== true) {
+    throw new Error(result?.message || 'Unable to confirm program results');
   }
-
-  return allSavedSuccessfully;
+  return true;
 };
