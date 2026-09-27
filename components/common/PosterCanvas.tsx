@@ -4,7 +4,6 @@ import { TbExchange } from "react-icons/tb";
 import { toPng } from "html-to-image";
 import LDRloader from "./LDRloader";
 import { categoryMap } from "../../app/data/branding";
-import { resultPosterTemplates } from "../../app/data/resultPosterTemplates";
 
 function PosterCanvas({ close, data }: { close: any; data: any }) {
   const elementRef: any = useRef(null);
@@ -16,7 +15,20 @@ function PosterCanvas({ close, data }: { close: any; data: any }) {
   const { program, result } = data;
   console.log("data", data);
 
-  const temp: any = resultPosterTemplates;
+  const temp: any = [
+    {
+      frame: "1",
+      data: [{ theme: "dark", image: "/results/res-temp-01.jpeg" }],
+    },
+    {
+      frame: "2",
+      data: [{ theme: "dark", image: "/results/res-temp-02.jpeg" }],
+    },
+    {
+      frame: "3",
+      data: [{ theme: "dark", image: "/results/res-temp-03.jpeg" }],
+    },
+  ];
 
   function getNextFrame(currentFrame: any, frames: any[]) {
     let currentIndex = frames.findIndex(
@@ -78,28 +90,29 @@ const orderGenerator = (order: any) => {
     if (frame.frame === "1") {
       return (
         <>
-          <div className="absolute top-[105px] left-[50px]">
-            <h6 className="mb-5 montserrat font-light text-white text-[10px] grid content-end leading-6 mt-7 w-[160px] h-[72px] align-text-bottom">
+          <div className="absolute top-[165px] left-[50px]">
+            <h6 className="mb-5 montserrat font-light text-xl grid content-end text-sky-950 leading-6 mt-7 w-[160px] h-[72px] align-text-bottom">
              
                 {categoryMap[program.category] || program.category} <br /> <span className="font-bold text-2xl">{program.name}</span>
                 {/* General Poster Presentation */}
             </h6>
           </div>
-            <p className="absolute top-[128px] montserrat left-[275px] text-6xl w-16 text-center text-sky-300">{orderGenerator(program.order) || ""}</p>
+            <p className="absolute top-[110px] left-[50px] text-6xl w-16 font-semibold text-center text-sky-700">
+             {orderGenerator(program.order) || ""}</p>
           
-          <div className={`ml-[35px] absolute top-[210px] left-[10px] mt-[45px] flex flex-col`}>
+          <div className={`ml-[195px] absolute top-[110px] left-[10px] mt-[15px] flex flex-col`}>
             {result.filter((rank: any) => rank.rank < 4).map((pro: any,index:number) => (
-                <div key={pro.rank} className={`h-[48px] flex items-center gap-2 w-50`}>
-                  <p className={`nexa-regular text-2xl text-white/50 tracking-tighter`}>
+                <div key={pro.rank} className={`h-[35px] flex items-center gap-2 w-50`}>
+                  <p className={`nexa-regular text-[15px] text-sky-700/70 tracking-tighter`}>
                     0{pro.rank}
                     </p>
-                     <div className={`${image?.theme === "dark" ? "text-white nexa-regular w-[100px]" : ""} translate-y-[1px]`}>
+                     <div className={`${image?.theme === "dark" ? "text-gray-700 nexa-regular w-[100px]" : ""}`}>
                     <h6 className="text-[15px] font-semibold w-80 leading-[16px]">
                       {pro.student.toUpperCase()}
                     </h6>
-                    <p className="text-[9px] nexa-light w-50 text-white/50 leading-[13px]">
+                    {/* <p className="text-[9px] nexa-light w-50 text-sky-600 leading-[13px]">
                       {pro.campus}
-                    </p>
+                    </p> */}
                   </div>
                 </div>
               ))}
@@ -112,28 +125,30 @@ const orderGenerator = (order: any) => {
     if (frame.frame === "2") {
       return (
         <>
-          <div className="absolute top-[115px] left-[120px]">
-            <h6 className="mb-5 montserrat font-light text-white text-[10px] grid content-end leading-6 mt-7 w-[160px] h-[72px] align-text-bottom">
+          <div className="absolute top-[90px] left-[170px]">
+            <h6 className="mb-5 montserrat font-light text-xl grid content-end text-white leading-6 mt-7 w-[160px] h-[72px] align-text-bottom">
              
                 {categoryMap[program.category] || program.category} <br /> <span className="font-bold text-2xl">{program.name}</span>
                 {/* General Poster Presentation */}
             </h6>
           </div>
-            <p className="absolute top-[95px] montserrat left-[300px] text-6xl w-16 text-center text-gray-900">{orderGenerator(program.order) || ""}</p>
+            <p className="absolute top-[120px]  left-[70px] text-6xl w-16 font-semibold text-right text-yellow-300">
+             {orderGenerator(program.order) || ""}
+             </p>
           
-          <div className={`ml-[35px] absolute top-[190px] left-[80px] mt-[45px] flex flex-col`}>
+          <div className={`ml-[100px] absolute top-[210px] left-[10px] mt-[15px] flex flex-col`}>
             {result.filter((rank: any) => rank.rank < 4).map((pro: any,index:number) => (
-                <div key={pro.rank} className={`h-[48px] flex items-center gap-2 w-50`}>
-                  <p className={`nexa-regular text-2xl text-white/50 tracking-tighter`}>
+                <div key={pro.rank} className={`h-[30px] flex items-center gap-2 w-50`}>
+                  <p className={`nexa-regular text-[15px] text-yellow-300 tracking-tighter`}>
                     0{pro.rank}
                     </p>
-                     <div className={`${image?.theme === "dark" ? "text-white nexa-regular w-[100px]" : ""} translate-y-[1px]`}>
+                     <div className={`${image?.theme === "dark" ? "text-white nexa-regular w-[100px]" : ""}`}>
                     <h6 className="text-[15px] font-semibold w-80 leading-[16px]">
                       {pro.student.toUpperCase()}
                     </h6>
-                    <p className="text-[9px] nexa-light w-50 text-white/50 leading-[13px]">
+                    {/* <p className="text-[9px] nexa-light w-50 text-sky-600 leading-[13px]">
                       {pro.campus}
-                    </p>
+                    </p> */}
                   </div>
                 </div>
               ))}
@@ -146,28 +161,30 @@ const orderGenerator = (order: any) => {
     if (frame.frame === "3") {
       return (
         <>
-          <div className="absolute top-[105px] left-[50px]">
-            <h6 className="mb-5 montserrat font-light text-gray-900 text-[10px] grid content-end leading-6 mt-7 w-[160px] h-[72px] align-text-bottom">
+          <div className="absolute top-[90px] left-[170px]">
+            <h6 className="mb-5 montserrat font-light text-xl grid content-end text-gray-800 leading-6 mt-7 w-[160px] h-[72px] align-text-bottom">
              
                 {categoryMap[program.category] || program.category} <br /> <span className="font-bold text-2xl">{program.name}</span>
                 {/* General Poster Presentation */}
             </h6>
           </div>
-            <p className="absolute top-[148px] montserrat left-[245px] text-6xl w-16 text-center text-sky-800">{orderGenerator(program.order) || ""}</p>
+            <p className="absolute top-[120px]  left-[70px] text-6xl w-16 font-semibold text-right text-green-700">
+             {orderGenerator(program.order) || ""}
+             </p>
           
-          <div className={`ml-[35px] absolute top-[180px] left-[10px] mt-[45px] flex flex-col`}>
+          <div className={`ml-[100px] absolute top-[210px] left-[10px] mt-[15px] flex flex-col`}>
             {result.filter((rank: any) => rank.rank < 4).map((pro: any,index:number) => (
-                <div key={pro.rank} className={`h-[48px] flex items-center gap-2 w-50`}>
-                  <p className={`nexa-regular text-2xl text-gray-500/50 tracking-tighter`}>
+                <div key={pro.rank} className={`h-[30px] flex items-center gap-2 w-50`}>
+                  <p className={`nexa-regular text-[15px] text-green-600 tracking-tighter`}>
                     0{pro.rank}
                     </p>
-                     <div className={`${image?.theme === "dark" ? "text-gray-900 nexa-regular w-[100px]" : ""} translate-y-[1px]`}>
+                     <div className={`${image?.theme === "dark" ? "text-gray-800 nexa-regular w-[100px]" : ""}`}>
                     <h6 className="text-[15px] font-semibold w-80 leading-[16px]">
                       {pro.student.toUpperCase()}
                     </h6>
-                    <p className="text-[9px] nexa-light w-50 text-gray-500 leading-[13px]">
+                    {/* <p className="text-[9px] nexa-light w-50 text-sky-600 leading-[13px]">
                       {pro.campus}
-                    </p>
+                    </p> */}
                   </div>
                 </div>
               ))}

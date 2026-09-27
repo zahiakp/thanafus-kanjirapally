@@ -22,9 +22,9 @@ const reviewItems = [
       "A earns 5 grade points and B earns 3 grade points in individual and group programs.",
   },
   {
-    title: "Ties share a rank and skip the next position",
+    title: "Ties share a rank without skipping the next position",
     detail:
-      "Equal normalized marks receive the same rank. Ranking then follows competition order, such as 1, 1, followed by no awarded rank.",
+      "Equal normalized marks receive the same rank. The next distinct mark receives the next rank, such as 1, 1, 2, 3.",
   },
   {
     title: "Placement points can exist without a grade",
@@ -75,7 +75,7 @@ export default function MarkingCriteriaPage() {
             <MdOutlineEmojiEvents className="text-3xl text-amber-500" />
             <h2 className="mt-3 font-semibold text-gray-900">Assign rank and grade</h2>
             <p className="mt-1 text-sm leading-6 text-gray-600">
-              Participants are sorted by normalized mark. Equal marks receive the same rank.
+              Participants are sorted by normalized mark. Equal marks share a rank; the next distinct mark receives the next rank (1, 1, 2, 3).
             </p>
           </article>
           <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">

@@ -53,9 +53,9 @@ export const assignRanksAndCalculatePoints = (args: {
   let lastMark = -1;
   let lastRank = 0;
 
-  sortedParticipants.forEach((participant, index) => {
+  sortedParticipants.forEach((participant) => {
     // Shared scores receive identical rank tiers
-    const rank = participant.finalMark === lastMark ? lastRank : index + 1;
+    const rank = participant.finalMark === lastMark ? lastRank : lastRank + 1;
     const result = pointsFor(participant.finalMark, rank);
 
     const { finalMark, ...originalParticipant } = participant;
