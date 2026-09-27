@@ -26,7 +26,7 @@ type CertificateAction = "png" | "pdf" | "print";
 
 const certificateForRank = {
   1: {
-    background: "/certificate/A5.jpg.jpeg",
+    background: "/certificate/merit-certificate.jpg",
     place: "First",
     pdfFormat: "a5" as const,
     paperName: "A5",
@@ -34,7 +34,7 @@ const certificateForRank = {
     heightMm: 210,
   },
   2: {
-    background: "/certificate/A6.jpg.jpeg",
+    background: "/certificate/merit-certificate.jpg",
     place: "Second",
     pdfFormat: "a6" as const,
     paperName: "A6",
@@ -50,25 +50,6 @@ function loadImage(source: string) {
     image.onerror = () => reject(new Error("Could not load the certificate template"));
     image.src = source;
   });
-}
-
-function wrapText(context: CanvasRenderingContext2D, text: string, maximumWidth: number) {
-  const words = text.trim().split(/\s+/);
-  const lines: string[] = [];
-  let line = "";
-
-  for (const word of words) {
-    const candidate = line ? line + " " + word : word;
-    if (line && context.measureText(candidate).width > maximumWidth) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = candidate;
-    }
-  }
-
-  if (line) lines.push(line);
-  return lines;
 }
 
 function safeFilePart(value: string) {
@@ -115,58 +96,91 @@ async function renderCertificate(program: CertificateProgram, winner: Certificat
   context.textAlign = "left";
   context.textBaseline = "top";
 
-  const name = String(winner.student || "Participant").trim().toUpperCase();
-  const team = String(winner.campus || "Team").trim().toUpperCase();
+  // Normalize all-caps labels while preserving names already entered in mixed case.
+  const displayLabel = (value: string) => {
+    const text = value.trim();
+    return text === text.toUpperCase()
+      ? text.toLowerCase().replace(/\b\p{L}/gu, (letter) => letter.toUpperCase())
+      : text;
+  };
+  const name = displayLabel(String(winner.student || "Participant"));
+  const team = displayLabel(String(winner.campus || "Team"));
   const grade = String(winner.grade || "N/A").trim().toUpperCase();
   const rawCategory = categoryMap[String(program.category || "")] || String(program.category || "");
-  const category = rawCategory.replace(/\s+(BOYS|GIRLS)$/i, "").trim().toUpperCase();
-  const programName = String(program.name || "Competition").trim().toUpperCase();
+  const category = displayLabel(rawCategory.replace(/\s+(BOYS|GIRLS)$/i, ""));
+  const programName = displayLabel(String(program.name || "Competition"));
+  const madrasa = /\bMADRASA\s*$/i.test(team) ? team : team + " Madrasa";
 
-  const introduction = "This is to proudly acknowledge and honor";
-  const details =
-    "of " + team + ", for securing " + template.place +
-    " Place with " + grade + " Grade in the " + category + " " +
-    programName + " competition held in connection with Meelad Maharjan " +
-    "from the 25th to 26th of August, 2026.";
+  type TextRun = { text: string; highlight?: boolean; isName?: boolean };
+  type TextWord = TextRun & { width: number; gap: number };
+  const paragraphs: TextRun[][] = [
+    [{ text: "This certificate is proudly presented to" }],
+    [{ text: name, highlight: true, isName: true }],
+    [
+      { text: "of" },
+      { text: madrasa, highlight: true },
+      { text: "for securing" },
+      { text: template.place.toLowerCase(), highlight: true },
+      { text: " prize (Grade: " + grade + ") in " },
+      { text: category, highlight: true },
+      { text: " " },
+      { text: programName, highlight: true },
+      { text: " at Thanafus 2026. In recognition of outstanding performance, dedication, and achievement we wish you continued success and excellence in all your future endeavours." },
+    ],
+  ];
 
-  const left = canvas.width * 0.145;
-  const maximumWidth = canvas.width * 0.57;
-  const startY = canvas.height * 0.418;
-  const maximumBottom = canvas.height * 0.705;
-  let fontSize = canvas.width * 0.034;
-  const minimumFontSize = canvas.width * 0.024;
+  const maximumWidth = canvas.width * 0.70;
+  const startY = canvas.height * 0.445;
+  const maximumBottom = canvas.height * 0.735;
+  let fontSize = canvas.width * 0.019;
+  let lines: TextWord[][] = [];
+  const getLineHeight = (line: TextWord[]) => fontSize * (line.some((word) => word.isName) ? 1.6 : 1) * 1.4;
+  const setFont = (highlight?: boolean, isName?: boolean) => {
+    context.font = (highlight ? "700 " : "400 ") + (fontSize * (isName ? 1.6 : 1)) + "px " + fontFamily;
+  };
 
-  type TextLine = { text: string; bold: boolean; color: string };
-  let lines: TextLine[] = [];
-  let lineHeight = fontSize * 1.17;
+  // Measure highlighted words in their actual font before wrapping and centering.
+  while (true) {
+    lines = [];
+    for (const paragraph of paragraphs) {
+      let line: TextWord[] = [];
+      let lineWidth = 0;
+      for (const run of paragraph) {
+        setFont(run.highlight, run.isName);
+        const spaceWidth = context.measureText(" ").width;
+        for (const word of run.text.trim().split(/\s+/).filter(Boolean)) {
+          const width = context.measureText(word).width;
+          if (line.length && lineWidth + spaceWidth + width > maximumWidth) {
+            lines.push(line);
+            line = [];
+            lineWidth = 0;
+          }
+          const gap = line.length ? spaceWidth : 0;
+          line.push({ text: word, highlight: run.highlight, isName: run.isName, width, gap });
+          lineWidth += gap + width;
+        }
+      }
+      if (line.length) lines.push(line);
+    }
 
-  while (fontSize >= minimumFontSize) {
-    context.font = "400 " + fontSize + "px " + fontFamily;
-    const introductionLines = wrapText(context, introduction, maximumWidth);
-
-    context.font = "700 " + fontSize + "px " + fontFamily;
-    const nameLines = wrapText(context, name, maximumWidth);
-
-    context.font = "400 " + fontSize + "px " + fontFamily;
-    const detailLines = wrapText(context, details, maximumWidth);
-
-    lines = [
-      ...introductionLines.map((text) => ({ text, bold: false, color: "#101010" })),
-      ...nameLines.map((text) => ({ text, bold: true, color: "#8a00e6" })),
-      ...detailLines.map((text) => ({ text, bold: false, color: "#101010" })),
-    ];
-
-    lineHeight = fontSize * 1.17;
-    if (startY + lines.length * lineHeight <= maximumBottom) break;
-    fontSize -= canvas.width * 0.001;
+    if (startY + lines.reduce((height, line) => height + getLineHeight(line), 0) <= maximumBottom &&
+        lines.every((line) => line.reduce((width, word) => width + word.gap + word.width, 0) <= maximumWidth)) break;
+    fontSize *= 0.95;
   }
 
-  lines.forEach((line, index) => {
-    context.font = (line.bold ? "700 " : "400 ") + fontSize + "px " + fontFamily;
-    context.fillStyle = line.color;
-    context.fillText(line.text, left, startY + index * lineHeight);
+  let y = startY;
+  lines.forEach((line) => {
+    const width = line.reduce((total, word) => total + word.gap + word.width, 0);
+    let x = (canvas.width - width) / 2;
+    for (const word of line) {
+      setFont(word.highlight, word.isName);
+      context.fillStyle = word.isName ? "#4A2C1A" : "#101010";
+      x += word.gap;
+      context.fillText(word.text, x, y);
+      x += word.width;
+    }
+    y += getLineHeight(line);
   });
-
   return { canvas, template, name };
 }
 
@@ -271,7 +285,7 @@ function CertificateModal({ data, close }: { data: { program: CertificateProgram
         </div>
 
         <p className="mb-4 text-sm text-gray-500">
-          First place is generated at A5 size and second place at A6 size. Choose an image, PDF, or direct print.
+          Both prizes use the same merit certificate with rank and grade in the text. First prize is A5 and second prize is A6. Choose an image, PDF, or direct print.
         </p>
 
         <div className="space-y-3">
