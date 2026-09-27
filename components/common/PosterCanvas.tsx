@@ -87,104 +87,34 @@ const orderGenerator = (order: any) => {
   const renderFrameContent = () => {
     if (!frame) return null;
 
-    if (frame.frame === "1") {
+  
+    if (["1","2","3"].includes(frame?.frame)) {
       return (
         <>
-          <div className="absolute top-[165px] left-[50px]">
-            <h6 className="mb-5 montserrat font-light text-xl grid content-end text-sky-950 leading-6 mt-7 w-[160px] h-[72px] align-text-bottom">
+          <div className="absolute top-[105px] left-[80px]">
+            <h6 className="mb-5 montserrat font-light text-gray-900 text-[12px] grid content-end leading-6 mt-7 w-[160px] h-[72px] align-text-bottom">
              
                 {categoryMap[program.category] || program.category} <br /> <span className="font-bold text-2xl">{program.name}</span>
                 {/* General Poster Presentation */}
             </h6>
           </div>
-            <p className="absolute top-[110px] left-[50px] text-6xl w-16 font-semibold text-center text-sky-700">
-             {orderGenerator(program.order) || ""}</p>
+            <p className="absolute top-[148px] montserrat left-[285px] text-6xl w-16 text-center text-green-800">
+              <p className="text-base text-gray-600">#result</p>
+              {orderGenerator(program.order) || ""}</p>
           
-          <div className={`ml-[195px] absolute top-[110px] left-[10px] mt-[15px] flex flex-col`}>
-            {result.filter((rank: any) => rank.rank < 4).map((pro: any,index:number) => (
-                <div key={pro.rank} className={`h-[35px] flex items-center gap-2 w-50`}>
-                  <p className={`nexa-regular text-[15px] text-sky-700/70 tracking-tighter`}>
+          <div className={`ml-[65px] absolute top-[200px] left-[10px] mt-[45px] flex flex-col`}>
+            {result.filter((rank: any) => rank.rank < 3 && rank.rank != 0).map((pro: any,index:number) => (
+                <div key={pro.rank} className={`h-[58px] flex items-center gap-2 w-50`}>
+                  <p className={`nexa-regular text-3xl text-gray-500/50 tracking-tighter`}>
                     0{pro.rank}
                     </p>
-                     <div className={`${image?.theme === "dark" ? "text-gray-700 nexa-regular w-[100px]" : ""}`}>
-                    <h6 className="text-[15px] font-semibold w-80 leading-[16px]">
+                     <div className={`${image?.theme === "dark" ? "text-gray-900 nexa-regular w-[100px]" : ""} translate-y-[1px]`}>
+                    <h6 className="text-[18px] font-semibold w-80 leading-[16px]">
                       {pro.student.toUpperCase()}
                     </h6>
-                    {/* <p className="text-[9px] nexa-light w-50 text-sky-600 leading-[13px]">
+                    <p className="text-[12px] nexa-light w-80 text-gray-500 leading-[13px]">
                       {pro.campus}
-                    </p> */}
-                  </div>
-                </div>
-              ))}
-          </div>
-        </>
-      );
-    }
-
-
-    if (frame.frame === "2") {
-      return (
-        <>
-          <div className="absolute top-[90px] left-[170px]">
-            <h6 className="mb-5 montserrat font-light text-xl grid content-end text-white leading-6 mt-7 w-[160px] h-[72px] align-text-bottom">
-             
-                {categoryMap[program.category] || program.category} <br /> <span className="font-bold text-2xl">{program.name}</span>
-                {/* General Poster Presentation */}
-            </h6>
-          </div>
-            <p className="absolute top-[120px]  left-[70px] text-6xl w-16 font-semibold text-right text-yellow-300">
-             {orderGenerator(program.order) || ""}
-             </p>
-          
-          <div className={`ml-[100px] absolute top-[210px] left-[10px] mt-[15px] flex flex-col`}>
-            {result.filter((rank: any) => rank.rank < 4).map((pro: any,index:number) => (
-                <div key={pro.rank} className={`h-[30px] flex items-center gap-2 w-50`}>
-                  <p className={`nexa-regular text-[15px] text-yellow-300 tracking-tighter`}>
-                    0{pro.rank}
                     </p>
-                     <div className={`${image?.theme === "dark" ? "text-white nexa-regular w-[100px]" : ""}`}>
-                    <h6 className="text-[15px] font-semibold w-80 leading-[16px]">
-                      {pro.student.toUpperCase()}
-                    </h6>
-                    {/* <p className="text-[9px] nexa-light w-50 text-sky-600 leading-[13px]">
-                      {pro.campus}
-                    </p> */}
-                  </div>
-                </div>
-              ))}
-          </div>
-        </>
-      );
-    }
-
-
-    if (frame.frame === "3") {
-      return (
-        <>
-          <div className="absolute top-[90px] left-[170px]">
-            <h6 className="mb-5 montserrat font-light text-xl grid content-end text-gray-800 leading-6 mt-7 w-[160px] h-[72px] align-text-bottom">
-             
-                {categoryMap[program.category] || program.category} <br /> <span className="font-bold text-2xl">{program.name}</span>
-                {/* General Poster Presentation */}
-            </h6>
-          </div>
-            <p className="absolute top-[120px]  left-[70px] text-6xl w-16 font-semibold text-right text-green-700">
-             {orderGenerator(program.order) || ""}
-             </p>
-          
-          <div className={`ml-[100px] absolute top-[210px] left-[10px] mt-[15px] flex flex-col`}>
-            {result.filter((rank: any) => rank.rank < 4).map((pro: any,index:number) => (
-                <div key={pro.rank} className={`h-[30px] flex items-center gap-2 w-50`}>
-                  <p className={`nexa-regular text-[15px] text-green-600 tracking-tighter`}>
-                    0{pro.rank}
-                    </p>
-                     <div className={`${image?.theme === "dark" ? "text-gray-800 nexa-regular w-[100px]" : ""}`}>
-                    <h6 className="text-[15px] font-semibold w-80 leading-[16px]">
-                      {pro.student.toUpperCase()}
-                    </h6>
-                    {/* <p className="text-[9px] nexa-light w-50 text-sky-600 leading-[13px]">
-                      {pro.campus}
-                    </p> */}
                   </div>
                 </div>
               ))}
