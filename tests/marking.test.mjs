@@ -50,7 +50,7 @@ test('ties preserve competition ranking and multiple judge normalization', () =>
 test('result queries use the same grades, points, and competition ties', async () => {
   const rows = [90,90,80,70,60].map((mark,i)=>({id:1,participantId:i,student:String(i),campus:'1',code:String(i),mark,participantStatus:'finished',studentName:'Participant',campusName:'Team',isGroup:0,members:1}));
   const { getProgramResults } = load('app/utils/resultQuery.ts', {
-    './markingCriteria':criteria,
+    './calculatePoints':{assignRanksAndCalculatePoints},
     './mysqlDb':{default:{execute:async()=>[rows]}},
   });
   const [result] = await getProgramResults('judged');
@@ -58,4 +58,33 @@ test('result queries use the same grades, points, and competition ties', async (
   assert.equal(result.second.length,0);
   assert.equal(result.third.length,0);
   assert.deepEqual(result.grades.map(p=>[p.grade,p.points]),[['A',5],['B',3]]);
+});
+
+test('judge 2 counts for everyone when any participant has a mark', () => {
+ const results=assignRanksAndCalculatePoints({program:{id:'1',isGroup:0},participants:[{...participant(90,'A'),mark2:89},participant(89,'B')]});
+ assert.deepEqual(results.map(p=>[p.code,p.rank,p.grade,p.points]),[['A',1,'A',10],['B',2,null,3]]);
+});
+test('judge 3 is selected independently of judge 2 and applies to all participants', () => {
+ const results=assignRanksAndCalculatePoints({program:{id:'1',isGroup:0},participants:[{...participant(80,'A'),mark3:80},participant(90,'B')]});
+ assert.deepEqual(results.map(p=>[p.code,p.grade,p.points]),[['A','A',10],['B',null,3]]);
+});
+test('three active columns use the same divisor even when one participant has zeros', () => {
+ const results=assignRanksAndCalculatePoints({program:{id:'1',isGroup:0},participants:[{...participant(75,'A'),mark2:75,mark3:75},participant(100,'B')]});
+ assert.deepEqual(results.map(p=>[p.code,p.grade,p.points]),[['A','B',8],['B',null,3]]);
+});
+test('program-wide column detection includes participants not eligible for ranking', () => {
+ const results=assignRanksAndCalculatePoints({program:{id:'1',isGroup:0},participants:[participant(90,'A')],markParticipants:[{mark2:50,mark3:0}]});
+ assert.equal(results[0].grade,null);
+ assert.equal(results[0].points,5);
+});
+test('result reader uses every judge column and isolates detection by program', async () => {
+ const rows=[
+  {id:1,participantId:1,student:'1',code:'A',mark:90,mark2:89,mark3:0,participantStatus:'finished'},
+  {id:1,participantId:2,student:'2',code:'B',mark:89,mark2:0,mark3:0,participantStatus:'finished'},
+  {id:2,participantId:3,student:'3',code:'C',mark:89,mark2:0,mark3:0,participantStatus:'finished'},
+ ];
+ const {getProgramResults}=load('app/utils/resultQuery.ts',{'./calculatePoints':{assignRanksAndCalculatePoints},'./mysqlDb':{default:{execute:async()=>[rows]}}});
+ const results=await getProgramResults('judged');
+ assert.equal(results[0].second[0].grade,null);
+ assert.equal(results[1].first[0].grade,'A');
 });
