@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       return { ...row, mark: marks[0], mark2: marks[1], mark3: marks[2] };
     });
     if (!participants.length) throw new ApiError('No finished participants to confirm', 400);
-    const ranked = assignRanksAndCalculatePoints({ participants, program });
+    const ranked = assignRanksAndCalculatePoints({ participants, program, markParticipants: rows });
     const results: { student: string; code: string; rank: number; grade: string; point: number }[] = [];
     const seen = new Set<string>();
     for (const row of ranked) {

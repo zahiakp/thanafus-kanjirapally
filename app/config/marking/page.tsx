@@ -68,7 +68,7 @@ export default function MarkingCriteriaPage() {
             <MdCalculate className="text-3xl text-primary-600" />
             <h2 className="mt-3 font-semibold text-gray-900">Normalize marks</h2>
             <p className="mt-1 text-sm leading-6 text-gray-600">
-              Judge marks are added and converted to a percentage out of 100.
+              Judge 1 always counts. Judge 2 or 3 counts for everyone when any participant in the program has a positive mark in that column.
             </p>
           </article>
           <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -174,6 +174,7 @@ export default function MarkingCriteriaPage() {
                 <div className="rounded-xl bg-white/70 p-4"><b>3 judges:</b> total - 300 - 100</div>
               </div>
               <p className="mt-3 text-sm leading-6 text-blue-900">
+                Each active judge column counts for every participant, including zero marks. Columns with no positive marks anywhere in the program are excluded.
                 Only participants with status <b>finished</b> are included when final results are generated.
                 Records with zero total points are not saved.
               </p>

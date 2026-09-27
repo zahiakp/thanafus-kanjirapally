@@ -27,24 +27,20 @@ interface GenerateResultsArgs {
 export const assignRanksAndCalculatePoints = (args: {
   participants: Participant[];
   program: Program;
+  markParticipants?: Pick<Participant, "mark2" | "mark3">[];
 }): Participant[] => {
   const { participants } = args;
 
-  // Step 1: Normalize total scores to a 100-point index percentage
+  // Select each optional judge column once across the entire program.
+  const markParticipants = args.markParticipants ?? participants;
+  const includeMark2 = markParticipants.some(p => Number(p.mark2) > 0);
+  const includeMark3 = markParticipants.some(p => Number(p.mark3) > 0);
+  const judgeCount = 1 + Number(includeMark2) + Number(includeMark3);
   const participantsWithFinalMark = participants.map((p) => {
-    let totalScore = p.mark || 0;
-    let maxMark = 100;
-
-    if (p.mark3 != null && p.mark3 > 0) {
-      totalScore += (p.mark2 || 0) + (p.mark3 || 0);
-      maxMark = 300;
-    } else if (p.mark2 != null && p.mark2 > 0) {
-      totalScore += p.mark2 || 0;
-      maxMark = 200;
-    }
-
-    const finalMark = (totalScore / maxMark) * 100;
-    return { ...p, finalMark };
+    const totalScore = Number(p.mark || 0)
+      + (includeMark2 ? Number(p.mark2 || 0) : 0)
+      + (includeMark3 ? Number(p.mark3 || 0) : 0);
+    return { ...p, finalMark: totalScore / judgeCount };
   });
 
   // Step 2: Sort descending based on final marks
