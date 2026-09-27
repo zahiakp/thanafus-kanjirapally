@@ -39,15 +39,15 @@ test('individual and group sizes all receive fixed grade points', () => {
   }
 });
 
-test('ties preserve competition ranking and multiple judge normalization', () => {
+test('ties preserve dense ranking and multiple judge normalization', () => {
   const results = assignRanksAndCalculatePoints({participants: [90,90,80].map(participant), program:{id:'1',members:1,isGroup:0}});
-  assert.deepEqual(results.map(p=>p.rank), [1,1,0]);
+  assert.deepEqual(results.map(p=>p.rank), [1,1,2]);
   const normalized = assignRanksAndCalculatePoints({participants: [{...participant(80,1),mark2:70,mark3:60}], program:{id:'1',members:1,isGroup:0}});
   assert.equal(normalized[0].grade,'B');
   assert.equal(normalized[0].points,8);
 });
 
-test('result queries use the same grades, points, and competition ties', async () => {
+test('result queries use the same grades, points, and dense ties', async () => {
   const rows = [90,90,80,70,60].map((mark,i)=>({id:1,participantId:i,student:String(i),campus:'1',code:String(i),mark,participantStatus:'finished',studentName:'Participant',campusName:'Team',isGroup:0,members:1}));
   const { getProgramResults } = load('app/utils/resultQuery.ts', {
     './calculatePoints':{assignRanksAndCalculatePoints},
@@ -55,9 +55,9 @@ test('result queries use the same grades, points, and competition ties', async (
   });
   const [result] = await getProgramResults('judged');
   assert.equal(result.first.length,2);
-  assert.equal(result.second.length,0);
+  assert.equal(result.second.length,1);
   assert.equal(result.third.length,0);
-  assert.deepEqual(result.grades.map(p=>[p.grade,p.points]),[['A',5],['B',3]]);
+  assert.deepEqual(result.grades.map(p=>[p.grade,p.points]),[['B',3]]);
 });
 
 test('judge 2 counts for everyone when any participant has a mark', () => {
@@ -87,4 +87,9 @@ test('result reader uses every judge column and isolates detection by program', 
  const results=await getProgramResults('judged');
  assert.equal(results[0].second[0].grade,null);
  assert.equal(results[1].first[0].grade,'A');
+});
+
+test('ties never consume the next distinct rank, including multiple second places', () => {
+ const results=assignRanksAndCalculatePoints({participants:[90,90,80,80,75].map(participant),program:{id:'1',members:1,isGroup:0}});
+ assert.deepEqual(results.map(p=>[p.rank,p.points]),[[1,10],[1,10],[2,8],[2,8],[0,3]]);
 });
