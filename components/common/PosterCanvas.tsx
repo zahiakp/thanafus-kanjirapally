@@ -17,17 +17,17 @@ function PosterCanvas({ close, data }: { close: any; data: any }) {
 
   const temp: any = [
     {
-      frame: "1",
-      data: [{ theme: "dark", image: "/results/res-temp-01.jpeg" }],
-    },
-    {
-      frame: "2",
-      data: [{ theme: "dark", image: "/results/res-temp-02.jpeg" }],
-    },
-    {
-      frame: "3",
-      data: [{ theme: "dark", image: "/results/res-temp-03.jpeg" }],
-    },
+    frame: "1",
+    data: [{ theme: "dark", image: "/results/res-1.png" }],
+  },
+  {
+    frame: "2",
+    data: [{ theme: "dark", image: "/results/res-2.png" }],
+  },
+  {
+    frame: "3",
+    data: [{ theme: "dark", image: "/results/res-3.png" }],
+  },
   ];
 
   function getNextFrame(currentFrame: any, frames: any[]) {
