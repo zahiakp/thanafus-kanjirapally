@@ -1,11 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar } from "primereact/sidebar";
 import { HiCheckCircle, HiOutlineEye, HiOutlineEyeOff } from "react-icons/hi";
 import { useRouter } from "next/navigation";
 import LDRloader from "../../components/common/LDRloader";
 import { FaUsers } from "react-icons/fa";
 import Categories from "../../components/Home/Categories";
+import { getTeamCredentials } from "./func";
 
 export function SideBar({
   visibleRight,
@@ -20,6 +21,38 @@ export function SideBar({
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState(false);
   const [password, setPassword] = useState(false);
+  const [credentials, setCredentials] = useState<{ username: string; password: string } | null>(null);
+  const [credentialsError, setCredentialsError] = useState("");
+
+  useEffect(() => {
+    setUsername(false);
+    setPassword(false);
+    setCredentials(null);
+    setCredentialsError("");
+  }, [data?.jamiaNo]);
+
+  const togglePassword = async () => {
+    if (password) {
+      setPassword(false);
+      return;
+    }
+    if (credentials) {
+      setPassword(true);
+      return;
+    }
+
+    setLoading(true);
+    setCredentialsError("");
+    try {
+      const loaded = await getTeamCredentials(String(data?.jamiaNo || ""));
+      setCredentials(loaded);
+      setPassword(true);
+    } catch (error: any) {
+      setCredentialsError(error?.message || "Unable to load team credentials");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   return (
@@ -91,14 +124,15 @@ export function SideBar({
                     <p>password</p>
                     <div
                       className="cursor-pointer"
-                      onClick={() => setPassword(!password)}
+                      onClick={() => void togglePassword()}
                     >
                       {password ? <HiOutlineEyeOff /> : <HiOutlineEye />}
                     </div>
                   </div>
                   <div className="bg-primary-100 mt-1 p-1 rounded-md px-4">
-                    {password ? <p>{data.password}</p> : <p>••••••••</p>}
+                    {password ? <p>{credentials?.password}</p> : <p>••••••••</p>}
                   </div>
+                  {credentialsError && <p className="mt-2 text-xs text-red-600">{credentialsError}</p>}
                 </div>
               </div>
             </div>

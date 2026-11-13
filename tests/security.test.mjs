@@ -182,9 +182,31 @@ test('Teams page waits for the restored profile role before clearing results', a
 test('team create and edit use one atomic PHP backend request', async () => {
   const modal = await read('components/common/AddCampus.tsx');
   const api = await read('app/campus/func.ts');
+  const teamIdApi = await read('app/api/campus/next-team-id/route.ts');
 
-  assert.match(modal, /saveTeam\(values, selectedCategories, edit\)/);
+  assert.match(modal, /saveTeam\(\{ \.\.\.values, shortname, jamiaNo \}, selectedCategories, edit\)/);
   assert.doesNotMatch(modal, /getAccessbyJamiaNo|editAccess|editTeam|addAccess|addTeam/);
   assert.match(api, /campuses\/action\.php\?action=teamSave/);
   assert.match(api, /id: edit\?\.id \|\| null/);
+  assert.match(modal, /teamIdRequest/);
+  assert.match(modal, /await getNextTeamId\(shortname\)/);
+  assert.match(modal, /response\.status === 409/);
+  assert.match(modal, /jamiaNo: edit\s*\? Yup\.string\(\)\.required/);
+  assert.match(api, /\/api\/campus\/next-team-id\?prefix=/);
+  assert.match(teamIdApi, /requireApiSession\(\["admin"\]\)/);
+  assert.match(teamIdApi, /SELECT jamiaNo AS identifier FROM campus/);
+  assert.match(teamIdApi, /SELECT username AS identifier FROM access/);
+  assert.match(teamIdApi, /String\(ordinal\)\.padStart\(2, "0"\)/);
+});
+
+test('team passwords are fetched only on demand for the admin details panel', async () => {
+  const api = await read('app/campus/func.ts');
+  const sidebar = await read('app/campus/SideBar.tsx');
+
+  assert.match(api, /action=credentials&teamId=/);
+  assert.match(api, /cache: "no-store"/);
+  assert.match(sidebar, /getTeamCredentials/);
+  assert.match(sidebar, /togglePassword/);
+  assert.match(sidebar, /credentials\?\.password/);
+  assert.doesNotMatch(sidebar, /data\.password/);
 });

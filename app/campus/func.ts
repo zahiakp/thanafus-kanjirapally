@@ -7,9 +7,9 @@ export async function saveTeam(values: any, categories: string[], edit?: any) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: edit?.id || null,
-        jamiaNo: values.jamiaNo,
-        name: values.name,
-        shortname: values.shortname,
+        jamiaNo: String(values.jamiaNo || "").trim().toUpperCase(),
+        name: String(values.name || "").trim(),
+        shortname: String(values.shortname || "").trim().toUpperCase(),
         strength: Number(values.strength),
         password: values.password || "",
         categories,
@@ -19,6 +19,7 @@ export async function saveTeam(values: any, categories: string[], edit?: any) {
     if (!response.ok || !result?.success) {
       return {
         success: false,
+        status: response.status,
         message: result?.message || "Unable to save team details",
       };
     }
@@ -55,6 +56,21 @@ export async function getTeam(teamId:any) {
       return null;
     }
   }
+
+export async function getTeamCredentials(teamId: string) {
+  const response = await fetch(
+    `${ROOT_URL}campuses/action.php?action=credentials&teamId=${encodeURIComponent(teamId)}`,
+    { method: "GET", cache: "no-store" }
+  );
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result?.success || !result?.data?.password) {
+    throw new Error(result?.message || "Unable to load team credentials");
+  }
+  return {
+    username: String(result.data.username || teamId),
+    password: String(result.data.password),
+  };
+}
 
   export async function addTeam(values: any,categories:any) {
     const myHeaders = new Headers();
@@ -154,33 +170,17 @@ export async function editTeam(id:any,values: any,categories:any) {
   }
 
 export async function getNextTeamId(shortName: string) {
-  const prefix = shortName.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  const prefix = shortName.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 20);
   if (!prefix) throw new Error("A team short name is required");
-
-  for (let ordinal = 1; ordinal <= 999; ordinal += 1) {
-    const candidate = `${prefix}${String(ordinal).padStart(2, "0")}`;
-    const response = await fetch(
-      `${ROOT_URL}campuses/action.php?teamId=${encodeURIComponent(candidate)}`,
-      { method: "GET", cache: "no-store" }
-    );
-
-    if (response.status === 404) return candidate;
-    if (!response.ok) {
-      throw new Error(`Unable to check team ID ${candidate}`);
-    }
-
-    const payload = await response.json();
-    const data = payload?.data ?? payload;
-    const records = Array.isArray(data) ? data : data ? [data] : [];
-    const exists = records.some(
-      (team: any) =>
-        String(team?.jamiaNo || team?.teamId || "").toUpperCase() === candidate
-    );
-
-    if (!exists) return candidate;
+  const response = await fetch(`/api/campus/next-team-id?prefix=${encodeURIComponent(prefix)}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.success || !payload?.teamId) {
+    throw new Error(payload?.message || `Unable to generate a team ID for ${prefix}`);
   }
-
-  throw new Error(`No available team ID found for ${prefix}`);
+  return String(payload.teamId);
 }
 
 export async function deleteTeam(id:any,root:any) {
