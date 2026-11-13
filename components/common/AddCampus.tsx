@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -49,12 +49,19 @@ function createSecurePassword(length = 16) {
 function AddCampus({ close, edit ,fetchCampuses}: { close: any; edit: any ,fetchCampuses:any}) {
   const [loading, setLoading] = useState(false);
   const [generatingTeamId, setGeneratingTeamId] = useState(false);
+  const teamIdRequest = useRef(0);
 
   const validationSchema = Yup.object().shape({
-    jamiaNo: Yup.string().required("Team Id Required"),
+    jamiaNo: edit
+      ? Yup.string().required("Team Id Required")
+      : Yup.string(),
     name: Yup.string().required("Team Name Required"),
     shortname: Yup.string().required("Team Short Name Required"),
-    strength: Yup.string().required("Team Strength Required"),
+    strength: Yup.number()
+      .typeError("Team Strength must be a number")
+      .integer("Team Strength must be a whole number")
+      .min(1, "Team Strength must be at least 1")
+      .required("Team Strength Required"),
     password: edit
       ? Yup.string().test(
           "optional-password-length",
@@ -81,13 +88,43 @@ function AddCampus({ close, edit ,fetchCampuses}: { close: any; edit: any ,fetch
     onSubmit: async (values: any) => {
       setLoading(true);
       try {
-        const response = await saveTeam(values, selectedCategories, edit);
+        if (selectedCategories.length === 0) {
+          showMessage("Select at least one category", "error");
+          return;
+        }
+
+        const shortname = values.shortname.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+        if (!shortname) {
+          showMessage("Enter a valid team short name", "error");
+          return;
+        }
+
+        // The preview generated on blur can become stale or be replaced by an
+        // older in-flight request. Resolve it again immediately before create.
+        let jamiaNo = edit ? String(values.jamiaNo).trim().toUpperCase() : await getNextTeamId(shortname);
+        teamIdRequest.current += 1;
+        formik.setFieldValue("shortname", shortname, false);
+        formik.setFieldValue("jamiaNo", jamiaNo, false);
+
+        let response = await saveTeam({ ...values, shortname, jamiaNo }, selectedCategories, edit);
+        const isIdConflict = !edit && (
+          response.status === 409 || /duplicate|already exists|team id.*exists/i.test(response.message || "")
+        );
+
+        // A second administrator may have claimed the previewed ID. Retry once
+        // with the next available ID; the backend still owns the final unique check.
+        if (isIdConflict) {
+          jamiaNo = await getNextTeamId(shortname);
+          formik.setFieldValue("jamiaNo", jamiaNo, false);
+          response = await saveTeam({ ...values, shortname, jamiaNo }, selectedCategories, edit);
+        }
+
         if (response.success) {
-          showMessage(edit ? "Campus updated successfully" : "Campus added successfully", "success");
+          showMessage(edit ? "Team updated successfully" : `Team ${jamiaNo} created successfully`, "success");
           await fetchCampuses();
           close(false);
         } else {
-          showMessage(response.message || "Failed to save campus details", "error");
+          showMessage(response.message || "Failed to save team details", "error");
         }
       } catch (error: any) {
         showMessage(error?.message || "An error occurred. Please try again later.", "error");
@@ -103,15 +140,21 @@ function AddCampus({ close, edit ,fetchCampuses}: { close: any; edit: any ,fetch
     const normalizedShortName = shortName.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
     if (!normalizedShortName || edit) return;
 
+    const requestId = ++teamIdRequest.current;
     formik.setFieldValue("shortname", normalizedShortName);
     setGeneratingTeamId(true);
     try {
-      formik.setFieldValue("jamiaNo", await getNextTeamId(normalizedShortName), true);
+      const nextTeamId = await getNextTeamId(normalizedShortName);
+      if (requestId === teamIdRequest.current) {
+        formik.setFieldValue("jamiaNo", nextTeamId, true);
+      }
     } catch (error: any) {
-      formik.setFieldValue("jamiaNo", "", true);
-      showMessage(error.message || "Could not generate a unique team ID", "error");
+      if (requestId === teamIdRequest.current) {
+        formik.setFieldValue("jamiaNo", "", true);
+        showMessage(error.message || "Could not generate a unique team ID", "error");
+      }
     } finally {
-      setGeneratingTeamId(false);
+      if (requestId === teamIdRequest.current) setGeneratingTeamId(false);
     }
   };
 
@@ -165,7 +208,7 @@ const categories = Object.fromEntries(
           onBlur={handleShortNameBlur}
         />
         <div className="relative">
-          <WFormInput formik={formik} name="jamiaNo" placeHolder="Team Id" disabled={edit}/>
+          <WFormInput formik={formik} name="jamiaNo" placeHolder="Team Id (generated automatically)" disabled />
           {generatingTeamId && (
             <TbReload className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-primary-600" aria-label="Generating team ID" />
           )}
