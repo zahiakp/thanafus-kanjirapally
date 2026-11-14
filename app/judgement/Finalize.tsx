@@ -8,7 +8,7 @@ import { FaCheckCircle } from "react-icons/fa";
 import IconInfoHexagon from "../../components/icon/icon-info-hexagon";
 import ResultAssign from "../../components/common/ResultAssign";
 import { Paginator, PaginatorPageChangeEvent } from "primereact/paginator";
-import { getProgramsbyStatusandPagination, getProgramsforJudgment } from "../programs/func";
+import { getStaffPrograms } from "../programs/func";
 import { IoSearchOutline } from "react-icons/io5";
 import LDRloader from "../../components/common/LDRloader";
 import IconMenuElements from "../../components/icon/menu/icon-menu-elements";
@@ -61,7 +61,7 @@ function Finalize() {
         try {
             let response;
             
-                response = await getProgramsbyStatusandPagination("resulted", params.toString(), proEndpoint)
+                response = await getStaffPrograms("resulted", params.toString())
             
 
             if (response && response.data) {

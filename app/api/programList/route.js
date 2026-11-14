@@ -1,4 +1,5 @@
 import pool from "../../utils/mysqlDb";
+import { assertProgramVenue, venueScope, withVenueTransaction } from "../../utils/venueAccess";
 import { apiErrorResponse, requireApiSession } from "../../utils/apiAuth";
 import { objectBody, positiveInteger } from "../../utils/validation";
 import { applyJudgeMarkPrivacy, judgeMarkVisibility } from "../../utils/judgeMarkPrivacy";
@@ -12,7 +13,7 @@ function participantIds(value) {
     .filter(Boolean);
 }
 
-async function getParticipants(program, campusId) {
+async function getParticipants(program, campusId, db) {
   const conditions = ["pl.program = ?"];
   const values = [program];
   if (campusId) {
@@ -20,7 +21,7 @@ async function getParticipants(program, campusId) {
     values.push(campusId);
   }
 
-  const [rows] = await pool.execute(
+  const [rows] = await db.execute(
     `SELECT pl.*, COALESCE(c.name, pl.campus) AS campusName
        FROM programlist pl
   LEFT JOIN campus c ON c.jamiaNo = pl.campus
@@ -32,7 +33,7 @@ async function getParticipants(program, campusId) {
   const names = new Map();
   if (ids.length) {
     const placeholders = ids.map(() => "?").join(",");
-    const [students] = await pool.execute(
+    const [students] = await db.execute(
       `SELECT jamiaNo, name FROM students WHERE jamiaNo IN (${placeholders})`,
       ids,
     );
@@ -61,7 +62,10 @@ export async function GET(request) {
     const program = positiveInteger(searchParams.get("program"), "program");
     const requestedCampus = searchParams.get("campusId")?.trim() || null;
     const campusId = session.role === "campus" ? session.campusId : requestedCampus;
-    const data = await getParticipants(program, campusId);
+    const data = await withVenueTransaction(async db => {
+      await assertProgramVenue(session, program, db);
+      return getParticipants(program, campusId, db);
+    });
     return Response.json({ success: true, data: applyJudgeMarkPrivacy(data, judgeMarkVisibility(session)) });
   } catch (error) {
     return apiErrorResponse(error);
@@ -79,6 +83,12 @@ export async function POST(request) {
     const values = [];
     if (campusId) { conditions.push("campus = ?"); values.push(campusId); }
     if (program) { conditions.push("program = ?"); values.push(program); }
+    const scope = await venueScope(session);
+    if (scope?.length === 0) conditions.push("1 = 0");
+    if (scope?.length) {
+      conditions.push("program IN (SELECT program_id FROM program_schedule WHERE venue_id IN (" + scope.map(() => "?").join(",") + "))");
+      values.push(...scope);
+    }
     const where = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
     const [data] = await pool.execute(`SELECT * FROM programlist${where} ORDER BY id`, values);
     return Response.json({ success: true, data: applyJudgeMarkPrivacy(data, judgeMarkVisibility(session)) });

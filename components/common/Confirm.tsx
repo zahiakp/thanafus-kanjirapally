@@ -38,7 +38,7 @@ const [userRole, setUserRole] = useState(cookies[accessCookieName]?.role);
                 onClick={async () => {
                   try {
                     const resp = await UpdateProgramStatus(program.id, type,proEndpoint);
-                    if (resp) {
+                    if (resp?.success) {
                       // router.refresh();
                       showMessage(
                         `${program.name} status changed successfully`,
@@ -47,7 +47,7 @@ const [userRole, setUserRole] = useState(cookies[accessCookieName]?.role);
                       close();
                       fetch && fetch()
                     } else {
-                      showMessage(`Error updating status`, "error");
+                      showMessage(resp?.message || "Error updating status", "error");
                       console.log("Error updating status");
                     }
                   } catch (error: any) {

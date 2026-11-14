@@ -3,7 +3,8 @@ import { assignRanksAndCalculatePoints } from "./calculatePoints";
 
 type ResultStatus = "judged" | "announced";
 
-export async function getProgramResults(status: ResultStatus, programId?: number) {
+export async function getProgramResults(status: ResultStatus, programId?: number, venues: number[] | null = null) {
+  if (venues?.length === 0) return [];
   const participantStatuses = status === "announced" ? ["finished", "awarded"] : ["finished"];
 
   const sql = `SELECT p.*, pl.id AS participantId, pl.student, pl.campus, pl.code, pl.mark, pl.mark2, pl.mark3,
@@ -15,8 +16,9 @@ export async function getProgramResults(status: ResultStatus, programId?: number
             LEFT JOIN campus c ON c.jamiaNo = pl.campus
                 WHERE p.status = ?
                       ${programId ? "AND p.id = ?" : ""}
+                      ${venues ? "AND EXISTS (SELECT 1 FROM program_schedule vs WHERE vs.program_id = p.id AND vs.venue_id IN (" + venues.map(() => "?").join(",") + "))" : ""}
              ORDER BY p.id, pl.mark DESC, pl.id`;
-  const [rows]: any = await pool.execute(sql, [status, ...(programId ? [programId] : [])]);
+  const [rows]: any = await pool.execute(sql, [status, ...(programId ? [programId] : []), ...(venues ?? [])]);
   const programs = new Map<number, any>();
 
   for (const row of rows) {

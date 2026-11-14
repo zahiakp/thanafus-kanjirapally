@@ -1,4 +1,5 @@
 import pool from "../../../utils/mysqlDb";
+import { assertEntryVenue } from "../../../utils/venueAccess";
 import { apiErrorResponse, ApiError, requireApiSession } from "../../../utils/apiAuth";
 import { objectBody, positiveInteger } from "../../../utils/validation";
 import { judgeSlotFromScope, judgeSlotFromUsername, markKeyForJudge } from "../../../utils/judges";
@@ -30,6 +31,7 @@ export async function POST(request) {
         return mark;
       });
       const assignments = submittedKeys.map((key) => `${key} = ?`).join(", ");
+      await assertEntryVenue(session, id, connection);
       await connection.execute(`UPDATE programlist SET ${assignments} WHERE id = ?`, [...values, id]);
     }
     await connection.commit();

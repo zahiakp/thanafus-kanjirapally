@@ -1,4 +1,5 @@
 import pool from "../../utils/mysqlDb";
+import { assertProgramVenue } from "../../utils/venueAccess";
 import { apiErrorResponse, ApiError, requireApiSession } from "../../utils/apiAuth";
 import { objectBody, requiredString } from "../../utils/validation";
 import { isRegistrationClosed } from "../../utils/registration";
@@ -23,6 +24,16 @@ export async function POST(request) {
     if (session.role === "campus" && ["students", "programlist"].includes(collectionName) && isRegistrationClosed()) throw new ApiError("Registration is closed", 409);
     connection = await pool.getConnection();
     await connection.beginTransaction();
+    if (collectionName === "Topics" && session.role === "judge") {
+      const [topics] = await connection.execute("SELECT program FROM topics WHERE id = ?", [id]);
+      if (!topics.length) throw new ApiError("Topic not found", 404);
+      await assertProgramVenue(session, Number(topics[0].program), connection, true);
+    }
+    if (collectionName === "programs") {
+      await connection.execute("SELECT id FROM programs WHERE id = ? FOR UPDATE", [id]);
+      const [schedule] = await connection.execute("SELECT program_id FROM program_schedule WHERE program_id = ? FOR UPDATE", [id]);
+      if (schedule.length) throw new ApiError("Unassign the program from its venue before deleting it", 409);
+    }
     if (collectionName === "campus") await connection.execute("DELETE FROM access WHERE campusId = ?", [id]);
 
     let sql = `DELETE FROM ${collectionName} WHERE ${target.key} = ?`;

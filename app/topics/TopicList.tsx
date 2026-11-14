@@ -8,7 +8,7 @@ import { Paginator, PaginatorPageChangeEvent } from "primereact/paginator";
 // NOTE: Adjust the paths to match your project structure.
 import IconInfoHexagon from "../../components/icon/icon-info-hexagon";
 import { getTopicsByProgram } from "./func";
-import { getProgramsbyStatusandPagination } from "../programs/func";
+import { getStaffPrograms } from "../programs/func";
 import { AddTopic } from "../../components/common/AddTopic";
 import IconMaximizeSquare from "../../components/icon/icon-maximize-square";
 import { ViewTopic } from "../../components/common/ViewTopic";
@@ -178,7 +178,7 @@ function TopicList() {
 
             let response: ProgramApiResponse;
             
-                response = await getProgramsbyStatusandPagination("pending", query, endpoint);
+                response = await getStaffPrograms("pending", query);
             
 
             dispatch({ type: 'FETCH_SUCCESS', payload: { programs: response.data || [], total: response.total || 0 } });

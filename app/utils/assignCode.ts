@@ -1,4 +1,3 @@
-import { ROOT_URL } from "../data/func";
 import React from "react";
 import { showMessage } from "../../components/common/CusToast";
 
@@ -98,22 +97,10 @@ export const assignCode = async (
 
     const updatePromises = participantsToUpdate.map(async (participant) => {
       try {
-        const myHeaders = new Headers();
-        myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
-
-        const urlencoded = new URLSearchParams();
-        urlencoded.append("id", String(participant.id));
-        urlencoded.append("code", participant.code as string);
-
-        const requestOptions: RequestInit = {
-          method: "PUT",
-          headers: myHeaders,
-          body: urlencoded,
-        };
-
         const response = await fetch(
-          `${ROOT_URL}participants/action.php?action=assignCode`,
-          requestOptions
+          "/api/programList/assignCode",
+          { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ participants: [{ id: participant.id, code: participant.code }] }) }
         );
 
         if (!response.ok) {

@@ -8,6 +8,7 @@ import { showMessage } from "../../../components/common/CusToast";
 import LDRloader from "../../../components/common/LDRloader";
 import { AccessUser, deleteAccessUser, getAccessUsers, updateAccessUser } from "./func";
 import AddUserModal from "./AddUserModal";
+import VenueScopeModal from "./VenueScopeModal";
 import { judgeLabel } from "../../utils/judges";
 
 const roleDetails: Record<string, { label: string; classes: string }> = {
@@ -135,6 +136,7 @@ function DeleteModal({ user, close, deleted }: { user: AccessUser; close: () => 
 }
 
 export default function Content() {
+  const [venueUser, setVenueUser] = useState<AccessUser>();
   const [users, setUsers] = useState<AccessUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -204,7 +206,9 @@ export default function Content() {
                   return (
                     <tr key={user.id} className="hover:bg-gray-50/70">
                       <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 font-bold uppercase text-primary-700">{user.username.slice(0, 2)}</div><div><p className="font-semibold text-gray-900">{user.username}</p><p className="text-xs text-gray-500">Access ID #{user.id}{user.campusId ? ` ? Team ID ${user.campusId}` : ""}</p></div></div></td>
-                      <td className="px-6 py-4"><span className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold ${info.classes}`}>{userRoleLabel(user)}</span></td>
+                      <td className="px-6 py-4"><span className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold ${info.classes}`}>{userRoleLabel(user)}</span>
+                        {(user.role === "report" || user.role === "judge") && <button type="button" className="mt-2 block text-sm text-primary-700 underline" onClick={() => setVenueUser(user)}>Venue access</button>}
+                      </td>
                       <td className="px-6 py-4">{user.isTeamManaged ? <div><span className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-700"><MdPeopleOutline /> Team managed</span><p className="mt-1 text-xs text-gray-500">Use the Team module</p></div> : user.isPrimary ? <div><span className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700"><MdLockOutline /> Primary access</span><p className="mt-1 text-xs text-gray-500">Compulsory for this role</p></div> : <span className="text-sm text-gray-600">Additional user</span>}</td>
                       <td className="px-6 py-4"><div className="flex justify-end gap-2">{user.isTeamManaged ? <span className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-500">Managed in Teams</span> : <><button type="button" onClick={() => setEditing(user)} className="rounded-lg bg-gray-50 p-2 text-gray-900 border border-gray-200" aria-label={`Edit ${user.username}`} title="Edit credentials"><MdOutlineEdit className="text-lg" /></button><button type="button" onClick={() => setDeleting(user)} disabled={user.isPrimary} className="rounded-lg bg-red-50 p-2.5 text-red-900 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-35" aria-label={`Delete ${user.username}`} title={user.isPrimary ? "Primary access cannot be deleted" : "Delete user"}><MdDeleteOutline className="text-lg" /></button></>}</div></td>
                     </tr>
@@ -219,6 +223,7 @@ export default function Content() {
       {editing && <EditModal user={editing} close={() => setEditing(null)} saved={loadUsers} />}
       {deleting && <DeleteModal user={deleting} close={() => setDeleting(null)} deleted={loadUsers} />}
       {adding && <AddUserModal close={() => setAdding(false)} saved={loadUsers} />}
+      {venueUser && <VenueScopeModal id={venueUser.id} username={venueUser.username} close={() => setVenueUser(undefined)} />}
     </main>
   );
 }

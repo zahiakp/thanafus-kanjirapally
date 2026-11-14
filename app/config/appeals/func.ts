@@ -53,12 +53,23 @@ export type AppealListResponse = {
 };
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${ROOT_URL}appeals/action.php${url}`, {
-    cache: "no-store",
-    ...options,
-    headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${ROOT_URL}appeals/action.php${url}`, {
+      cache: "no-store",
+      ...options,
+      headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
+    });
+  } catch (error) {
+    if (options?.signal?.aborted) throw error;
+    throw new Error("Could not connect to Appeals. Check your connection and try again.");
+  }
   const payload = await response.json().catch(() => null);
+  if (response.status === 404 && !payload) throw new Error("The Appeals endpoint is unavailable (HTTP 404).");
+  if (response.status >= 500) {
+    const requestId = response.headers.get("x-request-id");
+    throw new Error(`The Appeals server could not complete the request (HTTP ${response.status}).${requestId ? ` Request ID ${requestId}.` : ""}`);
+  }
   if (!response.ok || !payload?.success) throw new Error(payload?.message || "Unable to complete the appeal request.");
   return payload as T;
 }
@@ -67,8 +78,8 @@ export function getAppeals(params: URLSearchParams) {
   return request<AppealListResponse & { success: true }>(`?action=list&${params.toString()}`);
 }
 
-export function getEligiblePrograms() {
-  return request<{ success: true; data: AppealProgram[]; bondAmount: number }>("?action=eligiblePrograms");
+export function getEligiblePrograms(signal?: AbortSignal) {
+  return request<{ success: true; data: AppealProgram[]; bondAmount: number }>("?action=eligiblePrograms", { signal });
 }
 
 export async function getEligibleParticipants(programId: number) {

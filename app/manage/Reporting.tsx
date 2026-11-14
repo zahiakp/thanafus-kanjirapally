@@ -3,7 +3,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useCookies } from "react-cookie";
 import IconInfoHexagon from "../../components/icon/icon-info-hexagon";
 import { Paginator, PaginatorPageChangeEvent } from "primereact/paginator";
-import { getProgramsbyStatusandPagination } from "../programs/func";
+import { getStaffPrograms } from "../programs/func";
 import { IoSearchOutline } from "react-icons/io5";
 import LDRloader from "../../components/common/LDRloader";
 import { getFirstLastInitials } from "../../components/common/NameShorter";
@@ -60,7 +60,7 @@ function Reporting() {
         try {
             let response;
             
-                response = await getProgramsbyStatusandPagination("reporting", params.toString(), proEndpoint);
+                response = await getStaffPrograms("reporting", params.toString());
             
 
             if (response && response.data) {

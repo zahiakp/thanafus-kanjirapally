@@ -1,6 +1,9 @@
 import { createHash, createHmac, randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { apiErrorResponse, requireApiSession } from "../../../utils/apiAuth";
+import { cookies } from "next/headers";
+import { SESSION_COOKIE, verifySessionToken } from "../../../utils/session";
+import { assertProgramVenue } from "../../../utils/venueAccess";
 import { isRegistrationClosed } from "../../../utils/registration";
 import { applyJudgeMarkPrivacy, judgeMarkVisibility } from "../../../utils/judgeMarkPrivacy";
 
@@ -25,11 +28,32 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
   const isJudgementRead = request.method === "GET" &&
     resource === "programs" &&
     request.nextUrl.searchParams.get("view") === "judgement";
-  const isPublicRead = !isJudgementRead && request.method === "GET" &&
+  const operationalStatuses = new Set(["pending", "reporting", "ongoing", "finished", "resulted"]);
+  const isStaffRead = request.method === "GET" && resource === "programs" && (
+    action === "staffschedule" || (action === "pagination" && request.nextUrl.searchParams.get("status")?.split(",").some(status => operationalStatuses.has(status.trim())))
+  );
+  const isPublicRead = !isJudgementRead && !isStaffRead && request.method === "GET" &&
     !(resource === "programs" && privateProgramReadActions.has(action)) &&
     (publicReadRoots.has(resource) || Boolean(action && publicReadActions.get(resource)?.has(action)));
   const isCacheablePublicRead = isPublicRead && resource === "results";
-  const session = isPublicRead ? null : await requireApiSession(isJudgementRead ? ["admin", "judge"] : undefined);
+  const optionalSession = isPublicRead ? await verifySessionToken((await cookies()).get(SESSION_COOKIE)?.value) : null;
+  const staffSession = optionalSession?.role === "judge" || optionalSession?.role === "report" ? optionalSession : null;
+  const isProgramResult = resource === "results" && action === "proresult";
+  const session = isPublicRead ? (isProgramResult ? optionalSession : staffSession) : await requireApiSession(isJudgementRead ? ["admin", "judge"] : undefined);
+  const staff = session?.role === "judge" || session?.role === "report";
+  if (staff && resource === "programs" && request.method !== "GET" && action !== "changestatus") {
+    return NextResponse.json({ success: false, message: "Administrator access is required to edit programs" }, { status: 403 });
+  }
+  if (staff && resource === "programs" && request.method === "GET" && request.nextUrl.searchParams.has("id")) {
+    const program = Number(request.nextUrl.searchParams.get("id"));
+    if (!Number.isSafeInteger(program) || program < 1) return NextResponse.json({ success: false, message: "Invalid program" }, { status: 400 });
+    await assertProgramVenue(session!, program);
+  }
+  if (staff && resource === "results" && action === "proresult") {
+    const program = Number(request.nextUrl.searchParams.get("program"));
+    if (!Number.isSafeInteger(program) || program < 1) return NextResponse.json({ success: false, message: "Invalid program" }, { status: 400 });
+    await assertProgramVenue(session!, program);
+  }
   const registrationResource = resource;
   const isRegistrationMutation =
     session?.role === "campus" &&
@@ -72,7 +96,7 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
   const upstream = await fetch(target, { method: request.method, headers, body: body.length ? body : undefined, redirect: "error", cache: "no-store" });
   const responseHeaders = new Headers({
     "content-type": upstream.headers.get("content-type") || "application/json",
-    "Cache-Control": isCacheablePublicRead
+    "Cache-Control": isCacheablePublicRead && !session
       ? "public, max-age=15, stale-while-revalidate=60"
       : "private, no-store, max-age=0",
   });

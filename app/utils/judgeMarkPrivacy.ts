@@ -24,7 +24,7 @@ function redactRecord(value: Record<string, unknown>, visibility: Exclude<JudgeM
   const copy = { ...value };
   const visibleKey = visibility === "hidden" ? null : markKeyForJudge(visibility);
   for (const { key, statusKey } of markColumns) {
-    if (visibility !== "hidden") copy[statusKey] = Number(value[key]) > 0;
+    if (visibility !== "hidden") copy[statusKey] = Object.prototype.hasOwnProperty.call(value, key) ? Number(value[key]) > 0 : value[statusKey] === true;
     if (key !== visibleKey) delete copy[key];
   }
   return copy;
