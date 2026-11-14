@@ -8,7 +8,7 @@ import { FaCheckCircle } from "react-icons/fa";
 import IconInfoHexagon from "../../components/icon/icon-info-hexagon";
 import ResultAssign from "../../components/common/ResultAssign";
 import { Paginator, PaginatorPageChangeEvent } from "primereact/paginator";
-import { getProgramsbyStatusandPagination } from "../programs/func";
+import { getStaffPrograms } from "../programs/func";
 import { IoSearchOutline } from "react-icons/io5";
 import LDRloader from "../../components/common/LDRloader";
 import IconMenuElements from "../../components/icon/menu/icon-menu-elements";
@@ -56,7 +56,7 @@ function OffStage() {
 
         try {
             let response;
-                response = await getProgramsbyStatusandPagination("finished", params.toString(), proEndpoint);
+                response = await getStaffPrograms("finished", params.toString());
             if (response && response.data) {
                 const filteredData = response.data;
                 setOngoing(filteredData);

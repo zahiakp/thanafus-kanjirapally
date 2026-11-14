@@ -4,6 +4,8 @@ import { accessCookieName, brandName } from "./app/data/branding";
 import { SESSION_COOKIE, verifySessionToken } from "./app/utils/session";
 
 const pagePermissions: Record<string, string[]> = {
+  "/schedule": ["admin", "report", "judge"],
+  "/venues": ["admin"],
   "/config/appeals": ["admin", "campus"],
   "/campus": ["admin"],
   "/judgement": ["admin", "judge"],
@@ -53,7 +55,7 @@ function jsonError(message: string, status: number) {
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isApi = pathname.startsWith("/api/");
-  const isPublic = (isApi ? publicApis : publicPages).some(
+  const isPublic = (pathname === "/api/schedule" && request.method === "GET" && request.nextUrl.searchParams.get("view") === "public") || (isApi ? publicApis : publicPages).some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 

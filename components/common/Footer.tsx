@@ -60,6 +60,14 @@ const Footer = () => {
       judgeOnly: true,
     },
     {
+      path: "/schedule",
+      label: "Schedule",
+      icon: <IconMenuForms />,
+      adminOnly: true,
+      regOnly: true,
+      judgeOnly: true,
+    },
+    {
       path: "/registration",
       label: "Manage",
       icon: <IconMenuForms />,

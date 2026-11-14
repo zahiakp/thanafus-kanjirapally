@@ -25,6 +25,7 @@
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "ldrs": "^1.0.2",
+    "leaflet": "^1.9.4",
     "lodash": "^4.17.21",
     "mysql2": "^3.6.5",
     "next": "^16.3.0",
@@ -47,6 +48,7 @@
     "yup": "^1.4.0"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.21",
     "@types/lodash": "^4.17.20",
     "@types/node": "^22.9.0",
     "@types/qrcode": "^1.5.5",

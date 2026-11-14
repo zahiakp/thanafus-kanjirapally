@@ -1,16 +1,8 @@
 import AdminLayout from "../../components/layout/AdminLayout";
-import Content from "./Content";
-import ScheduleViewer from "./Schedule";
+import { requireApiSession } from "../utils/apiAuth";
+import Queue from "./Queue";
 
-async function page() {
-  return (
-    <AdminLayout active="schedule">
-      <div className="w-full box-border">
-        <Content/>
-        <ScheduleViewer/>
-        </div>
-    </AdminLayout>
-  );
+export default async function SchedulePage() {
+  const session = await requireApiSession(["admin", "report", "judge"]);
+  return <AdminLayout active="schedule"><Queue view={session.role === "admin" ? "admin" : "staff"} /></AdminLayout>;
 }
-
-export default page;

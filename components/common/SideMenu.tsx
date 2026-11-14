@@ -94,13 +94,8 @@ const SideMenu = () => {
       adminOnly: true,
       campusOnly: true,
     },
-    // {
-    //   path: "/schedule",
-    //   label: "Schedule",
-    //   icon: <IconPlayCircle fill={true}/>,
-    //   adminOnly: true,
-    //   announceOnly: true,
-    // },
+    { path: "/schedule", label: "Schedule", icon: <IconMenuForms />, adminOnly: true, regOnly: true, judgeOnly: true },
+    { path: "/venues", label: "Venues", icon: <IconMenuDatatables />, adminOnly: true },
     // {
     //   path: "/topics",
     //   label: "Topics",

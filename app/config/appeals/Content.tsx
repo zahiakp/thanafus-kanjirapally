@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IoClose, IoSearchOutline } from "react-icons/io5";
 import { MdGavel, MdOutlinePayments, MdReportProblem } from "react-icons/md";
 import LDRloader from "../../../components/common/LDRloader";
@@ -76,7 +76,13 @@ function AppealActions({ appeal, run, decide, busy }: {
 }
 
 export default function AppealsContent({ role }: { role: "admin" | "campus" }) {
+  const listRequest = useRef(0);
+  const participantRequest = useRef(0);
   const [appeals, setAppeals] = useState<Appeal[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [programsLoading, setProgramsLoading] = useState(role === "campus");
+  const [programsError, setProgramsError] = useState("");
+  const [participantError, setParticipantError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -104,6 +110,7 @@ export default function AppealsContent({ role }: { role: "admin" | "campus" }) {
   const limit = 15;
 
   const loadAppeals = useCallback(async () => {
+    const request = ++listRequest.current;
     setLoading(true); setError(null);
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (search) params.set("search", search);
@@ -115,25 +122,54 @@ export default function AppealsContent({ role }: { role: "admin" | "campus" }) {
     if (dateTo) params.set("dateTo", dateTo);
     try {
       const result = await getAppeals(params);
+      if (request !== listRequest.current) return;
+      setLoaded(true);
       setAppeals(result.data); setTotal(result.total); setBondAmount(result.bondAmount);
       setSummary(result.summary); setFilterOptions(result.filters || { programs: [], campuses: [] });
-    } catch (loadError) { setError(loadError instanceof Error ? loadError.message : "Unable to load appeals."); }
-    finally { setLoading(false); }
+    } catch (loadError) {
+      if (request === listRequest.current) setError(loadError instanceof Error ? loadError.message : "Unable to load appeals.");
+    } finally {
+      if (request === listRequest.current) setLoading(false);
+    }
   }, [page, search, status, bondStatus, programId, campusId, dateFrom, dateTo]);
 
-  useEffect(() => { void loadAppeals(); }, [loadAppeals]);
+  useEffect(() => {
+    void loadAppeals();
+    return () => { listRequest.current++; };
+  }, [loadAppeals]);
+  const loadPrograms = useCallback(async (signal?: AbortSignal) => {
+    setProgramsLoading(true);
+    setProgramsError("");
+    try {
+      const result = await getEligiblePrograms(signal);
+      if (!signal?.aborted) { setPrograms(result.data); setBondAmount(result.bondAmount); }
+    } catch (loadError) {
+      if (!signal?.aborted) setProgramsError(loadError instanceof Error ? loadError.message : "Unable to load eligible programs.");
+    } finally {
+      if (!signal?.aborted) setProgramsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (role !== "campus") return;
-    void getEligiblePrograms().then((result) => { setPrograms(result.data); setBondAmount(result.bondAmount); }).catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Unable to load eligible programs."));
-  }, [role]);
+    const controller = new AbortController();
+    void loadPrograms(controller.signal);
+    return () => { controller.abort(); participantRequest.current++; };
+  }, [role, loadPrograms]);
 
   async function changeProgram(value: string) {
-    setSelectedProgram(value); setSelectedParticipant(""); setParticipants([]);
+    const request = ++participantRequest.current;
+    setSelectedProgram(value); setSelectedParticipant(""); setParticipants([]); setParticipantError("");
+    setLoadingParticipants(Boolean(value));
     if (!value) return;
-    setLoadingParticipants(true);
-    try { setParticipants(await getEligibleParticipants(Number(value))); }
-    catch (loadError) { showMessage(loadError instanceof Error ? loadError.message : "Unable to load participants.", "error"); }
-    finally { setLoadingParticipants(false); }
+    try {
+      const result = await getEligibleParticipants(Number(value));
+      if (request === participantRequest.current) setParticipants(result);
+    } catch (loadError) {
+      if (request === participantRequest.current) setParticipantError(loadError instanceof Error ? loadError.message : "Unable to load participants.");
+    } finally {
+      if (request === participantRequest.current) setLoadingParticipants(false);
+    }
   }
 
   async function submitAppeal(event: FormEvent) {
@@ -143,8 +179,9 @@ export default function AppealsContent({ role }: { role: "admin" | "campus" }) {
     try {
       const result = await createAppeal(Number(selectedParticipant), comment.trim());
       showMessage(result.message, "success");
-      setSelectedProgram(""); setSelectedParticipant(""); setParticipants([]); setComment(""); setPage(1);
-      await loadAppeals();
+      setSelectedProgram(""); setSelectedParticipant(""); setParticipants([]); setComment("");
+      if (page === 1) await loadAppeals();
+      else setPage(1);
     } catch (submitError) { showMessage(submitError instanceof Error ? submitError.message : "Unable to submit appeal.", "error"); }
     finally { setSubmitting(false); }
   }
@@ -166,14 +203,14 @@ export default function AppealsContent({ role }: { role: "admin" | "campus" }) {
   return <main className="space-y-6">
     <header className="rounded-xl border border-gray-200 bg-white p-5"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-2xl text-primary-600"><MdGavel /></span><div><h1 className="text-xl font-bold text-gray-900">Appeals</h1><p className="text-sm text-gray-500">{role === "admin" ? "Review allegations, payments, decisions, and bond settlements." : "Raise an allegation against an opponent participant."}</p></div></div></header>
 
-    {role === "campus" && <form onSubmit={submitAppeal} className="rounded-xl border border-gray-200 bg-white p-5"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold text-gray-900">Raise an appeal</h2><p className="text-sm text-gray-500">Available from reporting until the result is announced.</p></div><div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">Bond: ₹{bondAmount}</div></div><div className="mt-5 grid gap-4 md:grid-cols-2"><label className="text-sm font-semibold text-gray-700">Program<select value={selectedProgram} onChange={(event) => void changeProgram(event.target.value)} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option value="">Select an eligible program</option>{programs.map((program) => <option key={program.id} value={program.id}>{program.name} · {program.category}</option>)}</select></label><label className="text-sm font-semibold text-gray-700">Opponent participant<select value={selectedParticipant} onChange={(event) => setSelectedParticipant(event.target.value)} disabled={!selectedProgram || loadingParticipants} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100"><option value="">{loadingParticipants ? "Loading..." : "Select opponent"}</option>{participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.participantName} · {participant.campusName}{participant.code ? ` · ${participant.code}` : ""}</option>)}</select></label></div>{selectedTarget && <div className="mt-4 rounded-lg border border-primary-100 bg-primary-50/60 p-3 text-sm"><strong>{selectedTarget.participantName}</strong><span className="text-gray-600"> · {selectedTarget.campusName}{selectedTarget.code ? ` · Code ${selectedTarget.code}` : ""}</span></div>}<label className="mt-4 block text-sm font-semibold text-gray-700">Allegation<textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={2000} rows={4} className="mt-2 w-full rounded-xl border border-gray-300 p-3" placeholder="Describe the alleged manipulation clearly..." /></label><div className="mt-2 flex items-center justify-between text-xs text-gray-400"><span>Payment is confirmed manually by Admin.</span><span>{comment.length}/2000</span></div><button disabled={submitting || !selectedParticipant || !comment.trim()} className="mt-5 rounded-lg bg-primary-600 px-5 py-2.5 font-semibold text-white disabled:opacity-50">{submitting ? "Submitting..." : "Submit appeal"}</button></form>}
+    {role === "campus" && <form onSubmit={submitAppeal} className="rounded-xl border border-gray-200 bg-white p-5"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold text-gray-900">Raise an appeal</h2><p className="text-sm text-gray-500">Available from reporting until the result is announced.</p></div><div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">Bond: ₹{bondAmount}</div></div><div className="mt-5 grid gap-4 md:grid-cols-2"><label className="text-sm font-semibold text-gray-700">Program<select disabled={programsLoading || Boolean(programsError) || submitting} value={selectedProgram} onChange={(event) => void changeProgram(event.target.value)} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option value="">{programsLoading ? "Loading programs…" : programsError ? "Programs unavailable" : programs.length ? "Select an eligible program" : "No programs eligible for appeals"}</option>{programs.map((program) => <option key={program.id} value={program.id}>{program.name} · {program.category}</option>)}</select></label><label className="text-sm font-semibold text-gray-700">Opponent participant<select value={selectedParticipant} onChange={(event) => setSelectedParticipant(event.target.value)} disabled={!selectedProgram || loadingParticipants || Boolean(participantError) || submitting} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 disabled:bg-gray-100"><option value="">{loadingParticipants ? "Loading participants…" : participantError ? "Participants unavailable" : selectedProgram && !participants.length ? "No eligible opponents" : "Select opponent"}</option>{participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.participantName} · {participant.campusName}{participant.code ? ` · ${participant.code}` : ""}</option>)}</select></label></div>{programsError && <p role="alert" className="mt-3 text-sm text-red-700">{programsError} <button type="button" onClick={() => void loadPrograms()} className="font-semibold underline">Retry programs</button></p>}{participantError && <p role="alert" className="mt-3 text-sm text-red-700">{participantError} <button type="button" onClick={() => void changeProgram(selectedProgram)} className="font-semibold underline">Retry participants</button></p>}{selectedTarget && <div className="mt-4 rounded-lg border border-primary-100 bg-primary-50/60 p-3 text-sm"><strong>{selectedTarget.participantName}</strong><span className="text-gray-600"> · {selectedTarget.campusName}{selectedTarget.code ? ` · Code ${selectedTarget.code}` : ""}</span></div>}<label className="mt-4 block text-sm font-semibold text-gray-700">Allegation<textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={2000} rows={4} className="mt-2 w-full rounded-xl border border-gray-300 p-3" placeholder="Describe the alleged manipulation clearly..." /></label><div className="mt-2 flex items-center justify-between text-xs text-gray-400"><span>Payment is confirmed manually by Admin.</span><span>{comment.length}/2000</span></div><button disabled={submitting || !selectedParticipant || !comment.trim()} className="mt-5 rounded-lg bg-primary-600 px-5 py-2.5 font-semibold text-white disabled:opacity-50">{submitting ? "Submitting..." : "Submit appeal"}</button></form>}
 
-    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[{ label: "Pending", value: summary.pending, icon: <MdReportProblem /> }, { label: "Unpaid bonds", value: summary.unpaid, icon: <MdOutlinePayments /> }, { label: "Approved", value: summary.approved, icon: <MdGavel /> }, { label: "Rejected", value: summary.rejected, icon: <MdGavel /> }].map((item) => <div key={item.label} className="rounded-xl border border-gray-200 bg-white p-4"><div className="flex items-center justify-between text-gray-500"><span className="text-sm">{item.label}</span><span className="text-xl text-primary-500">{item.icon}</span></div><p className="mt-2 text-2xl font-bold text-gray-900">{item.value}</p></div>)}</section>
+    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[{ label: "Pending", value: summary.pending, icon: <MdReportProblem /> }, { label: "Unpaid bonds", value: summary.unpaid, icon: <MdOutlinePayments /> }, { label: "Approved", value: summary.approved, icon: <MdGavel /> }, { label: "Rejected", value: summary.rejected, icon: <MdGavel /> }].map((item) => <div key={item.label} className="rounded-xl border border-gray-200 bg-white p-4"><div className="flex items-center justify-between text-gray-500"><span className="text-sm">{item.label}</span><span className="text-xl text-primary-500">{item.icon}</span></div><p className="mt-2 text-2xl font-bold text-gray-900">{loaded ? item.value : "—"}</p></div>)}</section>
 
     {role === "admin" && <section className="rounded-xl border border-gray-200 bg-white p-4"><form onSubmit={(event) => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }} className="grid gap-3 md:grid-cols-2 xl:grid-cols-7"><div className="relative"><IoSearchOutline className="absolute left-3 top-3 text-lg text-gray-400" /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-3" placeholder="Search appeals..." /></div><select value={status} onChange={(event) => { setPage(1); setStatus(event.target.value); }} className="rounded-lg border border-gray-300 px-3 py-2.5"><option value="">All decisions</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select><select value={bondStatus} onChange={(event) => { setPage(1); setBondStatus(event.target.value); }} className="rounded-lg border border-gray-300 px-3 py-2.5"><option value="">All bond statuses</option><option value="unpaid">Unpaid</option><option value="paid">Paid</option><option value="refunded">Refunded</option><option value="forfeited">Forfeited</option></select><select value={programId} onChange={(event) => { setPage(1); setProgramId(event.target.value); }} className="rounded-lg border border-gray-300 px-3 py-2.5"><option value="">All programs</option>{filterOptions.programs.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select><select value={campusId} onChange={(event) => { setPage(1); setCampusId(event.target.value); }} className="rounded-lg border border-gray-300 px-3 py-2.5"><option value="">All filing teams</option>{filterOptions.campuses.map((campus) => <option key={campus.id} value={campus.id}>{campus.name}</option>)}</select><label className="text-xs font-semibold text-gray-500">From<input type="date" value={dateFrom} onChange={(event) => { setPage(1); setDateFrom(event.target.value); }} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label><label className="text-xs font-semibold text-gray-500">To<input type="date" value={dateTo} onChange={(event) => { setPage(1); setDateTo(event.target.value); }} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label></form></section>}
 
-    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white"><div className="border-b border-gray-200 p-4"><h2 className="font-bold text-gray-900">{role === "admin" ? "All appeals" : "Your appeals"}</h2><p className="text-sm text-gray-500">{total} appeal(s)</p></div>{loading ? <div className="flex min-h-60 items-center justify-center bg-primary-50/40"><LDRloader /></div> : error ? <div className="m-5 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">{error}<button onClick={() => void loadAppeals()} className="ml-3 font-bold underline">Try again</button></div> : appeals.length === 0 ? <div className="flex min-h-56 flex-col items-center justify-center p-8 text-center"><MdGavel className="text-5xl text-gray-300" /><p className="mt-3 font-semibold text-gray-700">No appeals found</p><p className="text-sm text-gray-500">Appeals matching this view will appear here.</p></div> : <AppealRows appeals={appeals} role={role} bondAmount={bondAmount} busy={busy} runAction={runAction} decide={(appeal, nextStatus) => setDecision({ appeal, status: nextStatus })} />}</section>
-    {total > limit && <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3"><p className="text-sm text-gray-500">Page {page} of {pages}</p><div className="flex gap-2"><button disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-40">Previous</button><button disabled={page >= pages} onClick={() => setPage((value) => value + 1)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-40">Next</button></div></div>}
+    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white"><div className="border-b border-gray-200 p-4"><h2 className="font-bold text-gray-900">{role === "admin" ? "All appeals" : "Your appeals"}</h2><p className="text-sm text-gray-500">{loading ? "Loading appeals…" : error ? "Appeal count unavailable" : `${total} ${total === 1 ? "appeal" : "appeals"}`}</p></div>{loading ? <div className="flex min-h-60 items-center justify-center bg-primary-50/40"><LDRloader /></div> : error ? <div role="alert" className="m-5 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">{error}<button onClick={() => void loadAppeals()} className="ml-3 font-bold underline">Try again</button></div> : appeals.length === 0 ? <div className="flex min-h-56 flex-col items-center justify-center p-8 text-center"><MdGavel className="text-5xl text-gray-300" /><p className="mt-3 font-semibold text-gray-700">No appeals found</p><p className="text-sm text-gray-500">Appeals matching this view will appear here.</p></div> : <AppealRows appeals={appeals} role={role} bondAmount={bondAmount} busy={busy} runAction={runAction} decide={(appeal, nextStatus) => setDecision({ appeal, status: nextStatus })} />}</section>
+    {!loading && !error && total > limit && <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3"><p className="text-sm text-gray-500">Page {page} of {pages}</p><div className="flex gap-2"><button disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-40">Previous</button><button disabled={page >= pages} onClick={() => setPage((value) => value + 1)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-40">Next</button></div></div>}
     {decision && <DecisionModal appeal={decision.appeal} decision={decision.status} close={() => setDecision(null)} saved={loadAppeals} />}
   </main>;
 }

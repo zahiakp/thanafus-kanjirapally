@@ -28,6 +28,7 @@ function CampusList() {
   const [rows, setRows] = useState<number>(12);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState("");
   const [add, setAdd] = useState(false);
   const [edit, setEdit] = useState();
   const [details, setDetails] = useState<any>(null);
@@ -62,6 +63,7 @@ function CampusList() {
     }
 
     setLoading(true);
+    setLoadError("");
     const requestId = ++latestRequest.current;
 
     // Construct the query parameters
@@ -83,6 +85,7 @@ function CampusList() {
       default:
         console.error("Invalid role provided:", role);
         resetData();
+        setLoadError("Your account cannot access the Teams list.");
         setLoading(false);
         return;
     }
@@ -93,18 +96,18 @@ function CampusList() {
 
       // A newer request (for a changed role, page, or search) owns the UI.
       if (requestId !== latestRequest.current) return;
-      if (data?.success) {
-        const rows = Array.isArray(data.data) ? data.data : [];
+      if (data?.success && Array.isArray(data.data)) {
+        const rows = data.data;
         setOverView(Array.isArray(data.overview) ? data.overview : []);
         setCampuses(rows);
         setTotalRecords(parseTotalRecords(data, rows.length));
       } else if (requestId === latestRequest.current) {
-        resetData();
+        setLoadError("Could not load teams. Try again.");
       }
     } catch (error) {
       console.error("Error fetching campuses:", error);
       if (requestId === latestRequest.current) {
-        resetData();
+        setLoadError("Could not load teams. Try again.");
       }
     } finally {
       if (requestId === latestRequest.current) {
@@ -149,7 +152,12 @@ function CampusList() {
           <div className="w-full h-40 flex items-center justify-center bg-primary-50 border border-primary-200 rounded-xl">
             <LDRloader />
           </div>
-        ) : campuses.length > 0 || totalRecords > 0 ? (
+        ) : loadError ? (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <span>{loadError}</span>
+            <button type="button" className="font-semibold underline" onClick={() => void fetchCampuses()}>Try again</button>
+          </div>
+        ) : campuses.length > 0 ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {campuses.map((team: any, index: number) => (

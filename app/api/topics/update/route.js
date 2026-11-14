@@ -1,11 +1,12 @@
 import pool from "../../../utils/mysqlDb";
+import { assertProgramVenue } from "../../../utils/venueAccess";
 import { apiErrorResponse, ApiError, requireApiSession } from "../../../utils/apiAuth";
 import { objectBody, positiveInteger, requiredString } from "../../../utils/validation";
 
 export async function POST(request) {
   let connection;
   try {
-    await requireApiSession(["admin", "judge"]);
+    const session = await requireApiSession(["admin", "judge"]);
     const body = objectBody(await request.json());
     const programId = positiveInteger(body.programId, "programId");
     const lang = requiredString(body, "lang", 20);
@@ -16,15 +17,16 @@ export async function POST(request) {
 
     connection = await pool.getConnection();
     await connection.beginTransaction();
+    await assertProgramVenue(session, programId, connection, true);
     for (let index = 0; index < Math.min(edit.length, topics.length); index += 1) {
-      await connection.execute("UPDATE Topics SET topic = ?, lang = ?, program = ? WHERE id = ?", [topics[index], lang, programId, edit[index]]);
+      await connection.execute("UPDATE Topics SET topic = ?, lang = ? WHERE id = ? AND program = ?", [topics[index], lang, edit[index], programId]);
     }
     for (const topic of topics.slice(edit.length)) {
       await connection.execute("INSERT INTO Topics (program, lang, topic) VALUES (?, ?, ?)", [programId, lang, topic]);
     }
     if (edit.length > topics.length) {
       const removed = edit.slice(topics.length);
-      await connection.query(`DELETE FROM Topics WHERE id IN (${removed.map(() => "?").join(",")})`, removed);
+      await connection.query(`DELETE FROM Topics WHERE program = ? AND id IN (${removed.map(() => "?").join(",")})`, [programId, ...removed]);
     }
     await connection.commit();
     return Response.json({ success: true });

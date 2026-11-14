@@ -117,8 +117,17 @@ export async function getProgramswithPagination(quary:any) {
       return null;
     }
   }
+  export async function getStaffPrograms(status: string, query: string) {
+    const params = new URLSearchParams(query);
+    params.set("status", status);
+    params.set("action", "staffSchedule");
+    const response = await fetch(`${ROOT_URL}programs/action.php?${params}`, { cache: "no-store" });
+    if (!response.ok) throw new Error("Could not load staff programs");
+    return response.json();
+  }
+
   export async function getProgramsforJudgment(status:any,quary:any,root:any,isStage:number) {
-    const URL: string = `${ROOT_URL}${root}/action.php?status=${status}&action=pagination&isStage=${isStage}&view=judgement&${quary}`;
+    const URL: string = `${ROOT_URL}${root}/action.php?status=${status}&action=staffSchedule&isStage=${isStage}&view=judgement&${quary}`;
     
     try {
       const response = await axios.get(URL);
@@ -594,6 +603,10 @@ export async function UpdateProgramStatus(id:any,status: any,root:any) {
 
   try {
       const response = await fetch(`${ROOT_URL}${root}/action.php?api=${API_KEY}&action=changestatus`, requestOptions);
+      if (root === "programs") {
+        const payload = await response.json().catch(() => null);
+        return response.ok && payload?.success ? payload : { success: false, message: payload?.message || "Unable to update program status" };
+      }
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -728,7 +741,12 @@ export async function ChangeParticipantStatus(id:any,status:any,root:any) {
   };
 
   try {
-      const response = await fetch(`${ROOT_URL}${root}/action.php?action=statusChange`, requestOptions);
+    const response = root === "participants"
+      ? await fetch("/api/programList/status", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ participant: { id }, type: status }),
+      })
+      : await fetch(`${ROOT_URL}${root}/action.php?action=statusChange`, requestOptions);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
