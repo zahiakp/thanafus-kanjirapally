@@ -5,6 +5,33 @@ import { ApiError } from "./apiAuth";
 type Actor = { username: string; role: string };
 export const hasVenueRole = (role: string) => role === "judge" || role === "report";
 
+export type StaffVenueAssignment = { accessId: number; venues: { id: number; name: string }[] | null };
+
+export async function readStaffVenueAssignments(db: PoolConnection, accessId?: number) {
+  const [rows] = await db.execute<(RowDataPacket & {
+    accessId: number; restricted: number; venueId: number | null; venueName: string | null;
+  })[]>(`
+    SELECT a.id AS accessId, s.access_id IS NOT NULL AS restricted, v.id AS venueId, v.name AS venueName
+    FROM access a
+    LEFT JOIN venue_staff_scope s ON s.access_id = a.id
+    LEFT JOIN venue_staff_grants g ON g.access_id = s.access_id
+    LEFT JOIN venues v ON v.id = g.venue_id
+    WHERE a.role IN ('judge', 'report') ${accessId === undefined ? "" : "AND a.id = ?"}
+    ORDER BY a.id, v.name, v.id
+  `, accessId === undefined ? [] : [accessId]);
+
+  const assignments = new Map<number, StaffVenueAssignment>();
+  for (const row of rows) {
+    const id = Number(row.accessId);
+    const assignment = assignments.get(id) ?? { accessId: id, venues: Number(row.restricted) ? [] : null };
+    if (row.venueId !== null && row.venueName !== null) {
+      assignment.venues?.push({ id: Number(row.venueId), name: row.venueName });
+    }
+    assignments.set(id, assignment);
+  }
+  return [...assignments.values()];
+}
+
 export async function venueScope(actor: Actor, db: typeof pool | PoolConnection = pool, lock = false): Promise<number[] | null> {
   if (!hasVenueRole(actor.role)) return null;
   const [accounts] = await db.execute<RowDataPacket[]>(
@@ -17,6 +44,13 @@ export async function venueScope(actor: Actor, db: typeof pool | PoolConnection 
     [accounts[0].id],
   );
   return rows.length ? rows.flatMap(row => row.venue_id == null ? [] : [Number(row.venue_id)]) : null;
+}
+
+export function programVenueFilter(scope: number[] | null, programColumn: string) {
+  if (scope === null) return { sql: "1 = 1", values: [] };
+  if (!scope.length) return { sql: "1 = 0", values: [] };
+  const placeholders = scope.map(() => "?").join(", ");
+  return { sql: `${programColumn} IN (SELECT program_id FROM program_schedule WHERE venue_id IN (${placeholders}))`, values: scope };
 }
 
 export async function assertProgramVenue(actor: Actor, program: number, db: typeof pool | PoolConnection = pool, lock = false) {

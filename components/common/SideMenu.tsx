@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from "react";
+import { Drawer } from "antd";
 import Logout from "./Logout";
 import { useCookies } from "react-cookie";
 import IconMenuDashboard from "../icon/menu/icon-menu-dashboard";
@@ -13,16 +14,26 @@ import { usePathname } from "next/navigation";
 import FooterSide from "./TopHeader";
 import Image from "next/image";
 import { TbLogout } from "react-icons/tb";
-import { MdGavel } from "react-icons/md";
+import { MdClose, MdGavel, MdMenu, MdMoreHoriz } from "react-icons/md";
 import { accessCookieName, brandLogo, brandName } from "../../app/data/branding";
 import IconSettings from "../icon/icon-settings";
+import IconAction from "./IconAction";
 
 const SideMenu = () => {
   const pathname = usePathname();
   const [logOut, setLogOut] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [cookies, setCookie] = useCookies([accessCookieName]);
   const cookieRole = cookies[accessCookieName]?.role as string | undefined;
   const [role, setRole] = useState<string | undefined>(cookieRole);
+
+  useEffect(() => setMobileOpen(false), [pathname]);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => { if (desktop.matches) setMobileOpen(false); };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
 
   useEffect(() => {
     if (cookieRole) {
@@ -154,12 +165,23 @@ const SideMenu = () => {
     },
   ];
 
+  const visibleItems = menuItems.filter(item =>
+    (role === "admin" && item.adminOnly) ||
+    (role === "campus" && item.campusOnly) ||
+    (role === "judge" && item.judgeOnly) ||
+    (role === "result" && item.resultOnly) ||
+    (role === "announce" && item.announceOnly) ||
+    (role === "report" && item.regOnly) ||
+    (role === "award" && item.awardOnly)
+  );
+  const isActive = (path: string) => pathname === path || (path !== "/" && pathname.startsWith(path + "/"));
+  const hasMore = visibleItems.length > 4;
+  const quickLinks = hasMore ? visibleItems.slice(0, 3) : visibleItems;
+
   return (
     <>
-    {/* Desktop Sidebar */}
-    <div className="hidden md:flex md:w-72 md:flex-col">
-      <div className="flex flex-col flex-grow overflow-y-auto bg-white md:w-72 fixed h-screen">
-        <div className="p-6 border-b border-gray-200">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col border-r border-gray-200 bg-white lg:flex">
+        <div className="shrink-0 border-b border-gray-200 p-6">
           <div className="mt-5 select-none text-xl text-white flex flex-col items-center justify-center">
             <div className="h-28 w-28 bg-primary-50 rounded-full flex items-center justify-center">
               <Image alt={`${brandName} logo`} src={brandLogo || "/eventpro-logo.png"} width={90} height={90} priority unoptimized className="h-[90px] w-[90px] object-contain" />
@@ -169,21 +191,15 @@ const SideMenu = () => {
           </div>
         </div>
 
-        <div className="p-4 px-5">
+        <nav aria-label="Dashboard navigation" className="min-h-0 flex-1 overflow-y-auto p-4 px-5">
           <ul className="space-y-2">
-            {menuItems.map((item: any, index: number) =>
-              (role === "admin" && item.adminOnly) ||
-              (role === "campus" && item.campusOnly) ||
-              (role === "judge" && item.judgeOnly) ||
-              (role === "result" && item.resultOnly) ||
-              (role === "announce" && item.announceOnly) ||
-              (role === "report" && item.regOnly) ||
-              (role === "award" && item.awardOnly) ? (
-                <li key={index}>
+            {visibleItems.map(item => (
+                <li key={item.path}>
                   <a
                     href={item.path}
+                    aria-current={isActive(item.path) ? "page" : undefined}
                     className={`flex items-center px-4 py-[10px] ${
-                      pathname === item.path
+                      isActive(item.path)
                         ? "bg-primary-600 text-white"
                         : "hover:bg-gray-100"
                     } text-gray-700 rounded-lg transition-colors duration-200`}
@@ -192,50 +208,38 @@ const SideMenu = () => {
                     <span className="ml-3 whitespace-nowrap">{item.label}</span>
                   </a>
                 </li>
-              ) : null
-            )}
+            ))}
           </ul>
-        </div>
+        </nav>
         <FooterSide setLogOut={setLogOut} />
+    </aside>
+
+    <header className="fixed inset-x-0 top-0 z-30 flex h-[calc(4rem+env(safe-area-inset-top))] items-center gap-2 border-b bg-white px-3 pt-[env(safe-area-inset-top)] shadow-sm lg:hidden">
+      <IconAction label="Open navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)} className="grid size-11 shrink-0 place-items-center rounded-lg text-2xl text-primary-700 hover:bg-primary-50"><MdMenu /></IconAction>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <Image alt="" src={brandLogo || "/eventpro-logo.png"} width={38} height={38} priority unoptimized className="size-9 shrink-0 object-contain" />
+        <b className="truncate text-base text-primary-800 sm:text-xl">{brandName || "Event Pro"}</b>
       </div>
-      
-    </div>
+      <IconAction label="Log out" onClick={() => setLogOut(true)} className="grid size-11 shrink-0 place-items-center rounded-lg bg-gray-100 text-xl text-gray-700"><TbLogout /></IconAction>
+    </header>
 
-    {/* Mobile Top Header */}
-    <div className="md:hidden fixed top-0 left-0 right-0 bg-white shadow z-10 h-16 flex items-center justify-between px-4">
-      <div className="flex min-w-0 items-center gap-2"><Image alt={`${brandName} logo`} src={brandLogo || "/eventpro-logo.png"} width={38} height={38} priority unoptimized className="h-9 w-9 shrink-0 object-contain" /><b className="truncate text-base text-primary-800 sm:text-xl">{brandName || "Event Pro"}</b></div>
-     <button onClick={()=>setLogOut(true)} type="button" className="text-gray-700 hover:text-red-600 p-3 rounded-lg bg-gray-100 hover:bg-red-100 transition-colors duration-200">
-                 <TbLogout />
-               </button>
-    </div>
+    <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t bg-white pb-[env(safe-area-inset-bottom)] shadow-sm lg:hidden">
+      {quickLinks.map(item => <a key={item.path} href={item.path} aria-current={isActive(item.path) ? "page" : undefined}
+        className={`flex h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px] ${isActive(item.path) ? "font-bold text-primary-700" : "text-gray-600"}`}>
+        <span aria-hidden="true" className="text-xl">{item.icon}</span><span className="max-w-full truncate">{item.label}</span>
+      </a>)}
+      {hasMore && <button type="button" onClick={() => setMobileOpen(true)} aria-expanded={mobileOpen} className="flex h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px] text-primary-700"><MdMoreHoriz aria-hidden="true" className="text-xl" />More</button>}
+    </nav>
 
-    {/* Mobile Footer Navigation */}
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-inner z-10 h-16 flex justify-around items-center">
-      {/* Show menuItems that match mobile role */}
-      {menuItems
-        .filter((item: any) =>
-          (role === "admin" && item.adminOnly) ||
-              (role === "campus" && item.campusOnly) ||
-              (role === "judge" && item.judgeOnly) ||
-              (role === "result" && item.resultOnly) ||
-              (role === "announce" && item.announceOnly) ||
-              (role === "report" && item.regOnly) ||
-              (role === "award" && item.awardOnly)
-        )
-        .slice(0, 4) // limit to first 4 for mobile layout
-        .map((item: any, index: number) => (
-          <a
-            key={index}
-            href={item.path}
-            className={`flex flex-col items-center text-[11px] ${
-              pathname === item.path ? "text-primary-600 font-bold" : "text-gray-500"
-            }`}
-          >
-            <div className="text-xl">{item.icon}</div>
-            {item.label}
-          </a>
-        ))}
-    </div>
+    <Drawer title="Navigation" placement="left" width="min(20rem, 90vw)" open={mobileOpen} onClose={() => setMobileOpen(false)} closable={false}
+      styles={{ body: { padding: 12 } }} extra={<IconAction label="Close navigation" onClick={() => setMobileOpen(false)} className="grid size-11 place-items-center rounded-lg bg-gray-100 text-xl"><MdClose /></IconAction>}>
+      <nav aria-label="All dashboard pages" className="space-y-1">
+        {visibleItems.map(item => <a key={item.path} href={item.path} onClick={() => setMobileOpen(false)} aria-current={isActive(item.path) ? "page" : undefined}
+          className={`flex min-h-12 items-center gap-3 rounded-lg px-3 py-2 ${isActive(item.path) ? "bg-primary-50 font-semibold text-primary-700" : "text-gray-700 hover:bg-gray-100"}`}>
+          <span aria-hidden="true" className="shrink-0 text-xl">{item.icon}</span><span>{item.label}</span>
+        </a>)}
+      </nav>
+    </Drawer>
     {logOut && <Logout close={() => setLogOut(false)} />}
   </>
   );

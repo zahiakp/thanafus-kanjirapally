@@ -1,5 +1,4 @@
-import pool from "../../utils/mysqlDb";
-import { assertProgramVenue, venueScope, withVenueTransaction } from "../../utils/venueAccess";
+import { assertProgramVenue, programVenueFilter, venueScope, withVenueTransaction } from "../../utils/venueAccess";
 import { apiErrorResponse, requireApiSession } from "../../utils/apiAuth";
 import { objectBody, positiveInteger } from "../../utils/validation";
 import { applyJudgeMarkPrivacy, judgeMarkVisibility } from "../../utils/judgeMarkPrivacy";
@@ -83,14 +82,12 @@ export async function POST(request) {
     const values = [];
     if (campusId) { conditions.push("campus = ?"); values.push(campusId); }
     if (program) { conditions.push("program = ?"); values.push(program); }
-    const scope = await venueScope(session);
-    if (scope?.length === 0) conditions.push("1 = 0");
-    if (scope?.length) {
-      conditions.push("program IN (SELECT program_id FROM program_schedule WHERE venue_id IN (" + scope.map(() => "?").join(",") + "))");
-      values.push(...scope);
-    }
-    const where = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
-    const [data] = await pool.execute(`SELECT * FROM programlist${where} ORDER BY id`, values);
+    const data = await withVenueTransaction(async db => {
+      const filter = programVenueFilter(await venueScope(session, db), "program");
+      conditions.push(filter.sql);
+      const [rows] = await db.execute(`SELECT * FROM programlist WHERE ${conditions.join(" AND ")} ORDER BY id`, [...values, ...filter.values]);
+      return rows;
+    });
     return Response.json({ success: true, data: applyJudgeMarkPrivacy(data, judgeMarkVisibility(session)) });
   } catch (error) { return apiErrorResponse(error); }
 }
