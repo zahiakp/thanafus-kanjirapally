@@ -2,7 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import { IoClose } from "react-icons/io5";
+import { MdPassword } from "react-icons/md";
 import { showMessage } from "../../../components/common/CusToast";
+import IconAction from "../../../components/common/IconAction";
+import { createSecurePassword } from "../../utils/createSecurePassword";
 import { createAccessUser } from "./func";
 
 const roles = [
@@ -62,13 +65,13 @@ export default function AddUserModal({ close, saved }: { close: () => void; save
     const loginDetails = `Username: ${created.username}\nPassword: ${created.password}\nRole: ${created.roleLabel}`;
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="created-user-title">
-        <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 id="created-user-title" className="text-xl font-bold text-gray-900">User created</h2>
               <p className="mt-1 text-sm text-gray-500">Copy and store these login details now.</p>
             </div>
-            <button type="button" onClick={close} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100" aria-label="Close created user dialog"><IoClose className="text-xl" /></button>
+            <IconAction label="Close created user dialog" onClick={close} className="grid size-11 shrink-0 place-items-center rounded-lg text-gray-500 hover:bg-gray-100"><IoClose className="text-xl" /></IconAction>
           </div>
 
           <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
@@ -93,13 +96,13 @@ export default function AddUserModal({ close, saved }: { close: () => void; save
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="add-user-title">
-      <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+      <form onSubmit={submit} className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 id="add-user-title" className="text-xl font-bold text-gray-900">Add user</h2>
             <p className="mt-1 text-sm text-gray-500">Create a login for an existing access role.</p>
           </div>
-          <button type="button" onClick={close} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100" aria-label="Close add user dialog"><IoClose className="text-xl" /></button>
+          <IconAction label="Close add user dialog" onClick={close} className="grid size-11 shrink-0 place-items-center rounded-lg text-gray-500 hover:bg-gray-100"><IoClose className="text-xl" /></IconAction>
         </div>
 
         <label className="mt-6 block text-sm font-semibold text-gray-800" htmlFor="new-user-role">Access role</label>
@@ -118,14 +121,22 @@ export default function AddUserModal({ close, saved }: { close: () => void; save
         <input id="new-user-username" value={username} onChange={(event) => setUsername(event.target.value)} disabled={Boolean(selectedRole.judgeSlot)} maxLength={100} autoComplete="username" className="mt-2 w-full border-gray-300 px-4 py-3 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500" placeholder="Enter a unique username" autoFocus />
 
         <label className="mt-5 block text-sm font-semibold text-gray-800" htmlFor="new-user-password">Password</label>
-        <div className="relative mt-2">
-          <input id="new-user-password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} maxLength={128} autoComplete="new-password" aria-invalid={password.length > 0 && password.length < 8} className="w-full border-gray-300 px-4 py-3 pr-20" placeholder="Minimum 8 characters" />
-          <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute inset-y-0 right-3 text-sm font-semibold text-primary-600">{showPassword ? "Hide" : "Show"}</button>
+        <div className="mt-2 flex gap-3">
+          <div className="relative min-w-0 flex-1">
+            <input id="new-user-password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} maxLength={128} autoComplete="new-password" aria-invalid={password.length > 0 && password.length < 8} className="w-full border-gray-300 px-4 py-3 pr-20" placeholder="Minimum 8 characters" />
+            <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute inset-y-0 right-3 text-sm font-semibold text-primary-600">{showPassword ? "Hide" : "Show"}</button>
+          </div>
+          <IconAction label="Generate password" disabled={saving} onClick={() => {
+            setPassword(createSecurePassword());
+            setShowPassword(true);
+          }} className="grid size-11 shrink-0 place-items-center self-center rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50">
+            <MdPassword className="text-xl" />
+          </IconAction>
         </div>
         {password.length > 0 && password.length < 8 && <p className="mt-2 text-sm font-medium text-red-600">Enter at least 8 characters ({password.length}/8).</p>}
 
         <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-900">After creation, copy and securely store the password. It cannot be viewed again later.</p>
-        <div className="mt-7 flex justify-end gap-3">
+        <div className="mt-7 flex flex-wrap justify-end gap-3">
           <button type="button" onClick={close} className="rounded-lg border border-gray-300 px-5 py-2.5 font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
           <button type="submit" disabled={saving} className="rounded-lg bg-primary-600 px-5 py-2.5 font-semibold text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Adding..." : "Add user"}</button>
         </div>

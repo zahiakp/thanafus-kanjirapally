@@ -1,30 +1,15 @@
-import React, { PropsWithChildren } from 'react';
+import type { PropsWithChildren } from 'react';
 import SideMenu from '../common/SideMenu';
 
-interface AdminLayoutProps {
-    active: string;
-}
-
-
-
-const AdminLayout: React.FC<PropsWithChildren<AdminLayoutProps>> = (props:any) => {
+export default function AdminLayout({ children }: PropsWithChildren<{ active: string }>) {
   return (
-    <main className="flex min-h-screen bg-gray-50 overflow-x-hidden">
-  {/* Fixed Sidebar */}
-  <div className="w-0 md:w-72 fixed h-full bg-white shadow-md !z-10">
-    <SideMenu />
-  </div>
-
-  {/* Main Content with margin to accommodate fixed sidebar */}
-  <div className="md:ml-72 min-w-0 flex-1 pt-14 pb-16 md:py-0"> {/* 14 for header, 16 for footer */}
-    <div className="p-4 md:p-16 md:px-20 w-full">
-      {props.children}
+    <div className="min-h-dvh w-full overflow-x-clip bg-gray-50">
+      <SideMenu />
+      <div className="min-w-0 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-[calc(4rem+env(safe-area-inset-top))] lg:ml-72 lg:py-0">
+        <div className="mx-auto w-full min-w-0 max-w-[1600px] px-3 py-4 sm:px-6 sm:py-6 lg:px-8 xl:px-10">
+          {children}
+        </div>
+      </div>
     </div>
-  </div>
-
-</main>
-
   );
-};
-
-export default AdminLayout;
+}

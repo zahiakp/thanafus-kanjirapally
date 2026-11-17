@@ -41,6 +41,13 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
   const isProgramResult = resource === "results" && action === "proresult";
   const session = isPublicRead ? (isProgramResult ? optionalSession : staffSession) : await requireApiSession(isJudgementRead ? ["admin", "judge"] : undefined);
   const staff = session?.role === "judge" || session?.role === "report";
+  const scopedPagination = staff && request.method === "GET" && resource === "programs" && action === "pagination";
+  if (staff && request.method === "GET" && ["programs", "zoneprograms", "campusprograms"].includes(resource)) {
+    const isProgramDetail = resource === "programs" && action === "" && request.nextUrl.searchParams.has("id");
+    if (!isStaffRead && !isProgramDetail && !scopedPagination) {
+      return NextResponse.json({ success: false, message: "Use the venue-scoped staff program list" }, { status: 403 });
+    }
+  }
   if (staff && resource === "programs" && request.method !== "GET" && action !== "changestatus") {
     return NextResponse.json({ success: false, message: "Administrator access is required to edit programs" }, { status: 403 });
   }
@@ -73,6 +80,7 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
 
   const target = new URL(parts.join("/"), base.endsWith("/") ? base : `${base}/`);
   request.nextUrl.searchParams.forEach((value, key) => { if (key !== "api" && key !== "view") target.searchParams.append(key, value); });
+  if (scopedPagination) target.searchParams.set("action", "staffSchedule");
   target.searchParams.set("api", apiKey);
   const body = ["GET", "HEAD"].includes(request.method) ? new Uint8Array() : new Uint8Array(await request.arrayBuffer());
   const timestamp = String(Math.floor(Date.now() / 1000));
