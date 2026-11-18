@@ -36,10 +36,10 @@ const certificateForRank = {
   2: {
     background: "/certificate/merit-certificate.jpg",
     place: "Second",
-    pdfFormat: "a6" as const,
-    paperName: "A6",
-    widthMm: 105,
-    heightMm: 148,
+    pdfFormat: "a5" as const,
+    paperName: "A5",
+    widthMm: 148,
+    heightMm: 210,
   },
 } as const;
 
@@ -111,12 +111,12 @@ async function renderCertificate(program: CertificateProgram, winner: Certificat
   const programName = displayLabel(String(program.name || "Competition"));
   const madrasa = /\bMADRASA\s*$/i.test(team) ? team : team + " Madrasa";
 
-  type TextRun = { text: string; highlight?: boolean; isName?: boolean };
+  type TextRun = { text: string; highlight?: boolean };
   type TextWord = TextRun & { width: number; gap: number };
   const paragraphs: TextRun[][] = [
-    [{ text: "This certificate is proudly presented to" }],
-    [{ text: name, highlight: true, isName: true }],
     [
+      { text: "This certificate is proudly presented to" },
+      { text: name, highlight: true },
       { text: "of" },
       { text: madrasa, highlight: true },
       { text: "for securing" },
@@ -134,9 +134,9 @@ async function renderCertificate(program: CertificateProgram, winner: Certificat
   const maximumBottom = canvas.height * 0.735;
   let fontSize = canvas.width * 0.019;
   let lines: TextWord[][] = [];
-  const getLineHeight = (line: TextWord[]) => fontSize * (line.some((word) => word.isName) ? 1.6 : 1) * 1.4;
-  const setFont = (highlight?: boolean, isName?: boolean) => {
-    context.font = (highlight ? "700 " : "400 ") + (fontSize * (isName ? 1.6 : 1)) + "px " + fontFamily;
+  let lineHeight = fontSize * 1.4;
+  const setFont = (highlight?: boolean) => {
+    context.font = (highlight ? "700 " : "400 ") + fontSize + "px " + fontFamily;
   };
 
   // Measure highlighted words in their actual font before wrapping and centering.
@@ -146,7 +146,7 @@ async function renderCertificate(program: CertificateProgram, winner: Certificat
       let line: TextWord[] = [];
       let lineWidth = 0;
       for (const run of paragraph) {
-        setFont(run.highlight, run.isName);
+        setFont(run.highlight);
         const spaceWidth = context.measureText(" ").width;
         for (const word of run.text.trim().split(/\s+/).filter(Boolean)) {
           const width = context.measureText(word).width;
@@ -156,30 +156,29 @@ async function renderCertificate(program: CertificateProgram, winner: Certificat
             lineWidth = 0;
           }
           const gap = line.length ? spaceWidth : 0;
-          line.push({ text: word, highlight: run.highlight, isName: run.isName, width, gap });
+          line.push({ text: word, highlight: run.highlight, width, gap });
           lineWidth += gap + width;
         }
       }
       if (line.length) lines.push(line);
     }
 
-    if (startY + lines.reduce((height, line) => height + getLineHeight(line), 0) <= maximumBottom &&
+    lineHeight = fontSize * 1.4;
+    if (startY + lines.length * lineHeight <= maximumBottom &&
         lines.every((line) => line.reduce((width, word) => width + word.gap + word.width, 0) <= maximumWidth)) break;
     fontSize *= 0.95;
   }
 
-  let y = startY;
-  lines.forEach((line) => {
+  lines.forEach((line, index) => {
     const width = line.reduce((total, word) => total + word.gap + word.width, 0);
     let x = (canvas.width - width) / 2;
     for (const word of line) {
-      setFont(word.highlight, word.isName);
-      context.fillStyle = word.isName ? "#4A2C1A" : "#101010";
+      setFont(word.highlight);
+      context.fillStyle = "#101010";
       x += word.gap;
-      context.fillText(word.text, x, y);
+      context.fillText(word.text, x, startY + index * lineHeight);
       x += word.width;
     }
-    y += getLineHeight(line);
   });
   return { canvas, template, name };
 }

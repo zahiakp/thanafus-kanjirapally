@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useCookies } from "react-cookie";
 import { showMessage } from "../../../components/common/CusToast";
 import Modal from "../../../components/common/Modal";
-import { ROOT_URL } from "../../data/func";
-import axios from "axios";
+import { saveParticipantCodes } from "../../utils/assignCode";
 
 function Report({
   close,
@@ -16,10 +13,6 @@ function Report({
   fetch?: any;
 }) {
 
-  const router = useRouter();
-  const [cookies] = useCookies(["access"]);
-  const [userRole, setUserRole] = useState(cookies?.access?.role);
-  const partEndpoint = "participants";
   const [loading, setLoading] = useState(false);
   const { program, type } = data;
   const [edit, setEdit] = useState(false);
@@ -113,13 +106,14 @@ function Report({
 
     setLoading(true);
     try {
-      const originalParticipantsMap = new Map(
-        data.participants.map((p: any) => [p.id, p])
+      const originalCodes = new Map<number | string, string | null>(
+        data.participants.map((p: any) => [p.id, p.code == null ? null : String(p.code).trim()])
       );
 
-      const changedParticipants = participants.filter((p: any) => {
-        const originalParticipant: any = originalParticipantsMap.get(p.id);
-        return !originalParticipant || originalParticipant.code !== p.code;
+      const changedParticipants = participants.flatMap((p: any) => {
+        const code = String(p.code).trim();
+        const previousCode = originalCodes.get(p.id) ?? null;
+        return code === previousCode ? [] : [{ id: p.id, code, previousCode }];
       });
 
       if (changedParticipants.length === 0) {
@@ -127,62 +121,12 @@ function Report({
         return;
       }
       
-      const updatePromises = changedParticipants.map(async (participant: any) => {
-        try {
-          const urlencoded = new URLSearchParams();
-          urlencoded.append("id", String(participant.id));
-          urlencoded.append("code", participant.code as string);
-
-          
-          await axios.put(
-            `${ROOT_URL}participants/action.php?action=assignCode`,
-            urlencoded,
-            {
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-              },
-            }
-          );
-
-         
-          return { success: true, id: participant.id };
-
-        } catch (error: any) {
-         
-          let errorMessage = "An unknown error occurred";
-          if (axios.isAxiosError(error)) {
-            if (error.response) {
-              errorMessage = `Server Error: ${error.response.status}. ${error.response.data?.message || ''}`;
-              console.error(`Error updating ID ${participant.id}:`, error.response.data);
-            } else if (error.request) {
-              errorMessage = "Network Error: No response from server.";
-              console.error(`Network error for ID ${participant.id}:`, error.request);
-            } else {
-              errorMessage = error.message;
-            }
-          } else {
-             errorMessage = error.message;
-          }
-          
-          console.error(`Failed to update participant ID ${participant.id}. Reason: ${errorMessage}`);
-          return { success: false, id: participant.id, message: errorMessage };
-        }
-      });
-
-      const results = await Promise.all(updatePromises);
-      const failedUpdates = results.filter((result) => !result.success);
-
-      if (failedUpdates.length > 0) {
-        const failedIds = failedUpdates.map(f => f.id).join(', ');
-        showMessage(`Failed to update codes for ID(s): ${failedIds}. See console for details.`, "error");
-      } else {
-        showMessage("Codes assigned successfully!", "success");
-        fetch && fetch();
-        close(false);
-      }
-    } catch (error: any) {
-      console.error("A critical error occurred during the update process:", error.message);
-      showMessage(error.message || "An unknown critical error occurred.", "error");
+      await saveParticipantCodes(changedParticipants);
+      showMessage("Codes updated successfully.", "success");
+      fetch?.();
+      close(false);
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "Could not update participant codes.", "error");
     } finally {
       setLoading(false);
     }
@@ -257,7 +201,7 @@ function Report({
                             ? "border-green-500 bg-green-50 text-green-700 focus:ring-green-500"
                             : "border-gray-300"
                         }`}
-                        disabled={!edit}
+                        disabled={!edit || loading}
                         aria-label={`Code for participant ${student.student}`}
                       />
                     </td>

@@ -43,7 +43,7 @@ function page() {
       className="bg-white p-10 rounded-3xl flex gap-5 overflow-hidden abq-card"
     ><div className="hidden w-44 bg-gradient-to-b from-primary-100 to-primary-300 md:flex items-center justify-center rounded-l-2xl -my-7 -ml-7">
       <div className="h-28 w-28 bg-primary-50 rounded-full flex items-center justify-center">
-        <Image alt={brandLogo + "logo "} unoptimized src={brandLogo || '/eventpro-logo.png'} width={90} height={90}/>
+        <Image alt={`${brandName} logo`} unoptimized src={brandLogo || '/eventpro-logo.png'} width={90} height={90}/>
         </div>
         </div>
       <div className="form-not flex flex-col items-center gap-3">
