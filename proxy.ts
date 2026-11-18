@@ -106,5 +106,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|images|results|certificate|favicon.ico|eventpro-logo.png|meelad-logo.png|mmp-logo.png|letter-head.png|letter-head-2.png|fonts|public).*)"],
+  matcher: ["/((?!_next/static|_next/image|images|results|certificate|favicon.ico|thanafus-logo[.]png$|eventpro-logo.png|meelad-logo.png|mmp-logo.png|letter-head.png|letter-head-2.png|fonts|public).*)"],
 };

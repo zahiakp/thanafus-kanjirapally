@@ -62,7 +62,7 @@ const resetRules: Record<ProgramStatus, ResetRule> = {
         key: "participantStatus",
         label: "Reopen completed or cancelled participants",
         mode: "required",
-        help: "Existing reporting statuses stay unchanged. Completed or cancelled participants return to Reported when they have a code, otherwise Not reported.",
+        help: "Existing reporting statuses stay unchanged. Completed or cancelled participants return to Reported.",
       },
       { key: "clearMarks", label: "Remove entered marks", mode: "required" },
       { key: "clearResults", label: "Remove calculated results", mode: "required" },
@@ -80,7 +80,7 @@ const resetRules: Record<ProgramStatus, ResetRule> = {
         key: "participantStatus",
         label: "Reopen completed or cancelled participants",
         mode: "required",
-        help: "They return to Reported when they have a code, otherwise Not reported.",
+        help: "Completed or cancelled participants return to Reported.",
       },
       { key: "clearMarks", label: "Remove entered marks", mode: "required" },
       { key: "clearResults", label: "Remove calculated results", mode: "required" },
@@ -164,7 +164,8 @@ export default function ResetModal({
       showMessage(
         "Program reset. " +
           (response.summary.resultRecordsRemoved || 0) +
-          " result records removed.",
+          " result records removed." +
+          (operations.clearCodes ? ` ${response.summary.participantCodesCleared || 0} participant codes cleared.` : ""),
         "success",
       );
       await onComplete();

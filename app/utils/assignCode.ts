@@ -6,6 +6,16 @@ interface Participant {
   code: string | null;
 }
 
+export async function saveParticipantCodes(participants: { id: number | string; code: string; previousCode?: string | null }[]) {
+  const response = await fetch("/api/programList/assignCode", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ participants }),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || body?.success !== true) throw new Error(body?.message || "Could not save participant codes. Try again.");
+}
+
 interface Topic {
   id: number | string;
 }
@@ -91,35 +101,8 @@ export const assignCode = async (
         : participant
     );
 
+    await saveParticipantCodes(shuffledParticipants.map(({ id, code }) => ({ id, code: newCodeAssignments.get(id)!, previousCode: code })));
     setParticipants(newParticipants);
-
-    const participantsToUpdate = newParticipants.filter(p => newCodeAssignments.has(p.id));
-
-    const updatePromises = participantsToUpdate.map(async (participant) => {
-      try {
-        const response = await fetch(
-          "/api/programList/assignCode",
-          { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ participants: [{ id: participant.id, code: participant.code }] }) }
-        );
-
-        if (!response.ok) {
-          throw new Error(`Server responded with status ${response.status}`);
-        }
-        return { success: true, id: participant.id };
-      } catch (error: any) {
-        console.error(`Error updating ID ${participant.id}:`, error.message);
-        return { success: false, id: participant.id, message: error.message };
-      }
-    });
-
-    const results = await Promise.all(updatePromises);
-    const failedUpdates = results.filter((result) => !result.success);
-
-    if (failedUpdates.length > 0) {
-      showMessage(`${failedUpdates.length} code assignments failed to save.`, "error");
-      throw new Error(`${failedUpdates.length} updates failed.`);
-    }
 
     showMessage("Codes assigned successfully!", "success");
     return true;
