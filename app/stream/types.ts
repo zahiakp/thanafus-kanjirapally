@@ -1,4 +1,5 @@
-export type StreamSceneType = "idle" | "announcement" | "live" | "result" | "scoreboard" | "next";
+import type { ScoreTablePage } from "./scoreTable";
+export type StreamSceneType = "idle" | "announcement" | "live" | "result" | "scoreboard" | "scoretable" | "next";
 export type StreamCueStatus = "queued" | "playing" | "completed" | "skipped";
 export type StreamPriority = 10 | 30 | 40 | 50 | 70 | 80 | 90 | 100;
 
@@ -8,6 +9,7 @@ export type StreamWinner = { name: string; team: string; mekhala?: string; rank:
 export type StreamTeamStanding = { name: string; shortName: string; points: number; rank: number };
 
 export type StreamScenePayload =
+  | ({ type: "scoretable"; eventTitle: string } & ScoreTablePage)
   | { type: "idle"; eventTitle: string; message: string }
   | { type: "announcement"; eventTitle: string; title: string; message: string; urgent: boolean }
   | { type: "live"; eventTitle: string; program: string; category: string; participantName: string; chestNo: string; teamName: string; finished: number; total: number }

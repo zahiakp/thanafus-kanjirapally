@@ -1,4 +1,5 @@
 "use client";
+import StreamScoreTable from "./StreamScoreTable";
 import { orderedWinners, winnerIndexAt } from "../../app/stream/resultReveal";
 
 import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
@@ -132,6 +133,7 @@ export default function StreamRenderer({ state, className = "" }: { state: Strea
   const payload = state.scene.payload;
   return <div className={`aspect-video w-full overflow-hidden bg-black font-public-sans ${className}`}><AnimatePresence mode="wait">
     <motion.div key={state.scene.key} className="h-full w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .65 }}>
+      {payload.type === "scoretable" && <StreamScoreTable payload={payload} />}
       {payload.type === "idle" && <IdleScene eventTitle={payload.eventTitle} message={state.enabled ? payload.message : "Stream is currently offline"} />}
       {payload.type === "announcement" && <AnnouncementScene payload={payload} />}
       {payload.type === "live" && <LiveScene payload={payload} />}

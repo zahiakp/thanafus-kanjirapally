@@ -35,7 +35,7 @@ export default function Content() {
   return <main className="space-y-5">
     <section className="space-y-4 rounded-xl border bg-white p-5">
       <h1 className="text-2xl font-bold">Stage results stream</h1>
-      <p className="text-sm text-gray-600">Each program opens with a 4-second introduction, followed by 8 seconds per first- and second-place winner, then 10 seconds of branding. Tied winners appear on separate slides. Results refresh every five minutes, including corrections and withdrawals.</p>
+      <p className="text-sm text-gray-600">Each program opens with a 4-second introduction, followed by 8 seconds per first- and second-place winner, then 10 seconds of branding. Tied winners appear on separate slides. After every five program results (and the final smaller group), the team score board shows all categories, five published programs and up to seven teams per 15-second slide, with overall totals. Results refresh every five minutes, including corrections and withdrawals.</p>
       {error && <p role="alert" className="text-red-700">{error}</p>}
       <label className="flex items-center gap-3"><input type="checkbox" checked={enabled} disabled={!ready || busy} onChange={async e => {
         const value = e.target.checked;
