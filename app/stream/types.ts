@@ -4,7 +4,7 @@ export type StreamPriority = 10 | 30 | 40 | 50 | 70 | 80 | 90 | 100;
 
 export type StreamProgramSummary = { id: number; name: string; category: string; status: string; order: number | null };
 export type StreamEntrySummary = { id: number; chestNo: string; participantName: string; teamName: string; status: string };
-export type StreamWinner = { name: string; team: string; rank: number; grade: string; points: number };
+export type StreamWinner = { name: string; team: string; mekhala?: string; rank: number; grade: string; points: number };
 export type StreamTeamStanding = { name: string; shortName: string; points: number; rank: number };
 
 export type StreamScenePayload =

@@ -1,4 +1,5 @@
 "use client";
+import { orderedWinners, winnerIndexAt } from "../../app/stream/resultReveal";
 
 import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
@@ -68,28 +69,66 @@ function ScoreboardScene({ eventTitle, teams }: { eventTitle: string; teams: Str
   </div></Frame>;
 }
 
-function Winners({ winners, rank }: { winners: StreamWinner[]; rank: number }) {
-  const current = winners.filter((winner) => winner.rank === rank);
-  const color = rank === 1 ? "text-amber-300" : rank === 2 ? "text-slate-200" : "text-orange-300";
-  return <motion.div key={rank} {...enter} className="text-center"><p className={`text-[clamp(18px,2.5vw,42px)] font-black uppercase tracking-[.2em] ${color}`}>{rank === 1 ? "Winner" : `${rank}${rank === 2 ? "nd" : "rd"} place`}</p><div className="mt-[3vh] space-y-[2vh]">{current.map((winner, index) => <div key={`${winner.name}-${index}`}><h2 className="text-[clamp(32px,5vw,82px)] font-black leading-none">{winner.name}</h2><p className="mt-[1.5vh] text-[clamp(14px,1.8vw,30px)] text-white/60">{winner.team}{winner.grade && ` • Grade ${winner.grade}`}</p></div>)}</div></motion.div>;
+function RevealText({ text, className = "", delay = 0 }: { text: string; className?: string; delay?: number }) {
+  const reduced = useReducedMotion();
+  return <span aria-label={text} className={className}>
+    {text.split(/\s+/).map((word, index) => <span key={index} aria-hidden="true" className="inline-block overflow-hidden align-bottom">
+      <motion.span className="inline-block whitespace-pre" initial={reduced ? false : { y: "110%", opacity: 0, filter: "blur(5px)" }}
+        animate={{ y: "0%", opacity: 1, filter: "blur(0px)" }}
+        transition={{ duration: reduced ? 0 : .55, delay: reduced ? 0 : delay + Math.min(index * .065, .8), ease: [.22, 1, .36, 1] }}>
+        {word + (index < text.split(/\s+/).length - 1 ? " " : "")}
+      </motion.span>
+    </span>)}
+  </span>;
 }
 
-function ResultScene({ payload, startedAt, duration }: { payload: Extract<StreamPublicState["scene"]["payload"], { type: "result" }>; startedAt: string; duration: number }) {
+function ResultScene({ payload, startedAt }: { payload: Extract<StreamPublicState["scene"]["payload"], { type: "result" }>; startedAt: string; duration: number }) {
   const reduced = useReducedMotion();
-  const ranks = useMemo(() => [2, 1].filter((rank) => payload.winners.some((winner) => winner.rank === rank)), [payload.winners]);
-  const [phase, setPhase] = useState(0);
-  const phases = 2 + ranks.length;
+  const winners = useMemo(() => orderedWinners(payload.winners), [payload.winners]);
+  const [index, setIndex] = useState(-1);
   useEffect(() => {
-    const update = () => { const elapsed = Math.max(0, Date.now() - new Date(startedAt).getTime()); setPhase(Math.min(phases - 1, Math.floor((elapsed / Math.max(1, duration * 1000)) * phases))); };
-    update(); const timer = window.setInterval(update, reduced ? 1_000 : 250); return () => window.clearInterval(timer);
-  }, [duration, phases, reduced, startedAt]);
-  const showingRank = phase > 0 && phase <= ranks.length ? ranks[phase - 1] : null;
-  const confetti = showingRank === 1 || phase === phases - 1;
-  return <Frame eventTitle={payload.eventTitle}><div className="w-full text-center"><AnimatePresence mode="wait">
-    {phase === 0 && <motion.div key="intro" {...enter}><p className="text-[clamp(13px,1.6vw,26px)] font-black uppercase tracking-[.4em] text-primary-300">Official result</p><h1 className="mx-auto mt-[4vh] max-w-[90%] text-[clamp(38px,6vw,100px)] font-black leading-none">{payload.program}</h1><p className="mt-[3vh] text-[clamp(16px,2vw,34px)] text-white/60">{payload.category}</p></motion.div>}
-    {showingRank && <Winners key={`rank-${showingRank}`} winners={payload.winners} rank={showingRank} />}
-    {phase === phases - 1 && <motion.div key="podium" {...enter}><p className="mb-[3vh] text-[clamp(12px,1.4vw,24px)] font-black uppercase tracking-[.35em] text-primary-300">Podium</p><div className="mx-auto grid max-w-[90%] grid-cols-2 items-end gap-[1.5vw]">{[2,1].map((rank) => <div key={rank} className={`rounded-t-[1.5vw] border border-white/10 bg-white/[.07] p-[2vw] ${rank === 1 ? "pb-[7vh] pt-[4vh]" : "pb-[4vh]"}`}><p className="text-[clamp(24px,3vw,52px)] font-black">#{rank}</p>{payload.winners.filter((winner) => winner.rank === rank).map((winner) => <div key={winner.name} className="mt-[1vh]"><p className="text-[clamp(12px,1.5vw,25px)] font-bold">{winner.name}</p><p className="text-[clamp(9px,.9vw,15px)] text-white/45">{winner.team}</p></div>)}</div>)}</div></motion.div>}
-  </AnimatePresence>{confetti && !reduced && <div className="pointer-events-none absolute inset-0 overflow-hidden">{Array.from({ length: 24 }, (_, index) => <motion.span key={index} initial={{ y: "-10vh", x: `${(index * 37) % 100}vw`, rotate: 0, opacity: 1 }} animate={{ y: "105vh", rotate: 540, opacity: .2 }} transition={{ duration: 2.4 + (index % 5) * .2, delay: (index % 8) * .08 }} className={`absolute h-[1.2vh] w-[.7vw] ${index % 3 === 0 ? "bg-primary-400" : index % 3 === 1 ? "bg-amber-300" : "bg-violet-400"}`} />)}</div>}</div></Frame>;
+    const update = () => setIndex(winnerIndexAt(Math.max(0, Date.now() - new Date(startedAt).getTime()) / 1000, winners.length));
+    update();
+    const timer = window.setInterval(update, 200);
+    return () => window.clearInterval(timer);
+  }, [startedAt, winners.length]);
+  const winner = winners[index];
+  const compact = index >= 0;
+  return <Frame eventTitle={payload.eventTitle}>
+    <div className="relative h-full w-full text-center">
+      <motion.div className="absolute inset-x-0 origin-top"
+        initial={false}
+        animate={{ top: compact ? "0%" : "32%", scale: compact ? .6 : 1 }}
+        transition={{ duration: reduced ? 0 : .85, ease: [.22, 1, .36, 1] }}>
+        <h1 className="mx-auto max-w-[95%] text-[clamp(28px,5vw,80px)] font-black leading-tight">
+          <RevealText text={payload.program} />
+        </h1>
+        <p className="mt-[1vh] text-[clamp(15px,2vw,32px)] font-semibold text-primary-200">
+          <RevealText text={payload.category} delay={.25} />
+        </p>
+      </motion.div>
+      <div className="absolute inset-x-0 bottom-0 top-[27%] flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          {winner && <motion.div key={index} className="w-full px-[2%]"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: reduced ? 0 : -15 }}
+            transition={{ duration: reduced ? 0 : .3 }}>
+            <div className={winner.rank === 1 ? "text-amber-300" : "text-slate-200"}>
+              <RevealText text={String(winner.rank).padStart(2, "0")} className="text-[clamp(45px,8vw,120px)] font-black leading-none" delay={.1} />
+            </div>
+            <h2 className="mx-auto mt-[1.5vh] max-w-[95%] break-words text-[clamp(25px,4vw,64px)] font-black leading-tight">
+              <RevealText text={winner.name} delay={.45} />
+            </h2>
+            <p className="mt-[2vh] text-[clamp(15px,2.1vw,34px)] font-semibold text-white/80">
+              <RevealText text={winner.team} delay={.85} />
+            </p>
+            {winner.mekhala && <p className="mt-[1vh] text-[clamp(13px,1.7vw,28px)] text-primary-200">
+              <RevealText text={winner.mekhala + " Mekhala"} delay={1.15} />
+            </p>}
+          </motion.div>}
+        </AnimatePresence>
+      </div>
+    </div>
+  </Frame>;
 }
 
 export default function StreamRenderer({ state, className = "" }: { state: StreamPublicState; className?: string }) {

@@ -168,6 +168,9 @@ export default function Content() {
     setError(null);
     try {
       setUsers(await getAccessUsers());
+      setLoadingAssignments(true);
+      setAssignmentError("");
+      setAssignmentAttempt(attempt => attempt + 1);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load users.");
     } finally {
@@ -179,7 +182,7 @@ export default function Content() {
   useEffect(() => {
     const controller = new AbortController();
     scheduleRequest<{ assignments: StaffVenueAssignment[] }>("?view=staff-access", undefined, controller.signal)
-      .then(result => setAssignments(Object.fromEntries(result.assignments.map(assignment => [assignment.accessId, assignment]))))
+      .then(result => { if (!controller.signal.aborted) setAssignments(Object.fromEntries(result.assignments.map(assignment => [assignment.accessId, assignment]))); })
       .catch(error => { if (!controller.signal.aborted) setAssignmentError(error.message); })
       .finally(() => { if (!controller.signal.aborted) setLoadingAssignments(false); });
     return () => controller.abort();
@@ -248,7 +251,7 @@ export default function Content() {
                       <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary-50 font-bold uppercase text-primary-700">{user.username.slice(0, 2)}</span>
                       <div className="min-w-0">
                         <p className="break-all font-semibold text-gray-900">{user.username}</p>
-                        <p className="break-words text-xs text-gray-500">Access ID #{user.id}{user.campusId ? ` · Team ID ${user.campusId}` : ""}</p>
+                        <p className="break-words text-xs text-gray-500">Access ID #{user.id}{user.role === "campus" && user.campusId ? ` · Team ID ${user.campusId}` : ""}</p>
                       </div>
                     </div>
                     <div className="min-w-0">

@@ -1,3 +1,4 @@
+import { enrichResultDetails } from "../../../utils/resultDetails";
 import { createHash, createHmac, randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { apiErrorResponse, requireApiSession } from "../../../utils/apiAuth";
@@ -110,6 +111,10 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
   });
   const requestId = upstream.headers.get("x-request-id");
   if (requestId) responseHeaders.set("x-request-id", requestId);
+  if (request.method === "GET" && isProgramResult && upstream.ok &&
+      (upstream.headers.get("content-type") || "").includes("application/json")) {
+    return NextResponse.json(await enrichResultDetails(await upstream.json()), { status: upstream.status, headers: responseHeaders });
+  }
   const shouldRedactMarks = request.method === "GET" &&
     ["programs", "participants", "zoneprograms"].includes(resource) &&
     (upstream.headers.get("content-type") || "").includes("application/json");

@@ -151,7 +151,7 @@ async function resultPayload(programId: number, eventTitle: string): Promise<Str
   );
   if (!programs[0]) return idlePayload(eventTitle, "The selected result is not publicly announced");
   const [rows]: any = await pool.execute(
-    `SELECT r.student, r.code, r.rank, r.grade, r.point, s.name AS studentName, c.name AS teamName
+    `SELECT r.student, r.code, r.rank, r.grade, r.point, s.name AS studentName, s.mekhala AS mekhala, c.name AS teamName
        FROM results r
   LEFT JOIN students s ON s.jamiaNo = SUBSTRING_INDEX(r.student, '&', 1)
   LEFT JOIN campus c ON c.jamiaNo = s.campus
@@ -163,7 +163,7 @@ async function resultPayload(programId: number, eventTitle: string): Promise<Str
     type: "result", eventTitle, program: text(programs[0].name), category: labelCategory(programs[0].category),
     winners: rows.map((row: any) => ({
       name: `${text(row.studentName) || `Code ${text(row.code) || text(row.student)}`}${Number(programs[0].isGroup) ? " & Party" : ""}`,
-      team: text(row.teamName), rank: Number(row.rank), grade: text(row.grade), points: Number(row.point || 0),
+      team: text(row.teamName), mekhala: text(row.mekhala), rank: Number(row.rank), grade: text(row.grade), points: Number(row.point || 0),
     })),
   };
 }

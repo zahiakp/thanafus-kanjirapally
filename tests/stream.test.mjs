@@ -19,17 +19,16 @@ test("stream control and admin APIs are admin-only while display state is token 
   assert.match(server, /public_token_hash/);
 });
 
-test("stream polling is version based and preserves the last valid display state", async () => {
+test("stream polling refreshes every five minutes and preserves cached playback", async () => {
   const display = await read("app/stream/main/StreamDisplay.tsx");
-  const server = await read("app/stream/server.ts");
+  const playlist = await read("app/stream/playlist.ts");
+  const proxy = await read("proxy.ts");
   assert.match(display, /AbortController/);
   assert.match(display, /localStorage/);
-  assert.match(display, /visibilitychange/);
-  assert.match(display, /BACKOFF\s*=\s*\[3_000, 5_000, 10_000, 30_000\]/);
-  assert.match(server, /changed:\s*false/);
-  assert.match(server, /knownVersion.*state\.version/);
+  assert.match(display, /setTimeout\(poll, RESULT_REFRESH_MS\)/);
+  assert.match(playlist, /RESULT_REFRESH_MS = 300_000/);
+  assert.ok(proxy.includes('"/api/stream/results"'));
 });
-
 test("stream data stays isolated and automatic results are idempotent", async () => {
   const schema = await read("database/stream-schema.sql");
   const server = await read("app/stream/server.ts");
@@ -46,6 +45,6 @@ test("the public renderer includes all six scenes and reduced-motion support", a
   for (const scene of ["idle", "announcement", "live", "result", "scoreboard", "next"]) assert.match(renderer, new RegExp(`payload\\.type === ["']${scene}["']`));
   assert.match(renderer, /useReducedMotion/);
   assert.match(renderer, /AnimatedNumber/);
-  assert.match(renderer, /confetti/i);
+  assert.match(renderer, /RevealText/);
 });
 

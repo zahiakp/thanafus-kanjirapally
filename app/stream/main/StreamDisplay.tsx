@@ -1,61 +1,80 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import StreamRenderer from "../../../components/stream/StreamRenderer";
-import { StreamPublicState, StreamUnchangedState } from "../types";
+import { playlistState, RESULT_REFRESH_MS, type ResultPlaylist } from "../playlist";
 
-const CACHE_KEY = "thanafus-stream-main-state";
-const BACKOFF = [3_000, 5_000, 10_000, 30_000];
-
-export default function StreamDisplay() {
+export default function StreamDisplay({ preview = false, refreshKey = 0 }: { preview?: boolean; refreshKey?: number }) {
+  const playbackStarted = useRef(false);
   const [token, setToken] = useState("");
-  const [state, setState] = useState<StreamPublicState | null>(null);
-  const [connected, setConnected] = useState(false);
+  const [list, setList] = useState<ResultPlaylist | null>(null);
+  const [position, setPosition] = useState({ tick: 0, startedAt: new Date().toISOString() });
   const [error, setError] = useState("");
-  const knownVersion = useRef<string | undefined>(undefined);
-  const failureCount = useRef(0);
-
   useEffect(() => {
-    const fragment = decodeURIComponent(window.location.hash.slice(1).trim());
-    setToken(fragment);
-    try {
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null") as StreamPublicState | null;
-      if (cached?.success && cached.changed) { setState(cached); knownVersion.current = cached.version; }
-    } catch { localStorage.removeItem(CACHE_KEY); }
-  }, []);
-
+    if (preview) return;
+    try { setToken(decodeURIComponent(window.location.hash.slice(1).trim())); }
+    catch { setError("Invalid display link."); }
+  }, [preview]);
   useEffect(() => {
-    if (!token) return;
-    let disposed = false; let timer: number | undefined; let controller: AbortController | null = null; let immediateRequested = false;
-    const schedule = (delay: number) => { window.clearTimeout(timer); timer = window.setTimeout(poll, delay); };
+    if (!preview && !token) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const controller = new AbortController();
+    let cacheKey = "";
     const poll = async () => {
-      if (disposed || controller) return;
-      controller = new AbortController();
-      const timeout = window.setTimeout(() => controller?.abort(), 6_000);
       try {
-        const query = new URLSearchParams({ screen: "main" });
-        if (knownVersion.current) query.set("version", knownVersion.current);
-        const response = await fetch(`/api/stream/state?${query}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: controller.signal });
-        const result = await response.json().catch(() => null) as StreamPublicState | StreamUnchangedState | { message?: string } | null;
-        if (!response.ok || !result || !("success" in result)) throw new Error(result && "message" in result ? result.message : "Unable to load the display");
-        failureCount.current = 0; setConnected(true); setError(""); knownVersion.current = result.version;
-        if (result.changed) { setState(result); localStorage.setItem(CACHE_KEY, JSON.stringify(result)); }
-        schedule(result.nextPollMs || 3_000);
-      } catch (pollError) {
-        if (disposed) return;
-        setConnected(false); setError(pollError instanceof Error ? pollError.message : "Connection lost");
-        failureCount.current = Math.min(failureCount.current + 1, BACKOFF.length - 1);
-        schedule(BACKOFF[failureCount.current]);
-      } finally { window.clearTimeout(timeout); controller = null; }
+        const response = await fetch("/api/stream/results" + (preview ? "?preview=1" : ""), {
+          cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
+          headers: preview ? {} : { Authorization: "Bearer " + token },
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success || !Array.isArray(data.results)) {
+          if (response.status === 401 || response.status === 403) {
+            setList(null);
+            try { localStorage.removeItem(cacheKey); } catch {}
+          }
+          throw new Error(data.message || "Unable to refresh results");
+        }
+        if (stopped) return;
+        if (!playbackStarted.current) { playbackStarted.current = true; setPosition({ tick: 0, startedAt: new Date().toISOString() }); }
+        setList(data); setError("");
+        try { if (cacheKey) localStorage.setItem(cacheKey, JSON.stringify(data)); } catch { /* Playback works in memory when storage is full. */ }
+      } catch (failure) {
+        if (!stopped) setError(failure instanceof Error ? failure.message : "Unable to refresh results");
+      } finally {
+        if (!stopped) timer = setTimeout(poll, RESULT_REFRESH_MS);
+      }
     };
-    const refresh = () => { if (!disposed) { immediateRequested = true; controller?.abort(); controller = null; schedule(0); } };
-    const visible = () => { if (document.visibilityState === "visible") refresh(); };
-    window.addEventListener("online", refresh); document.addEventListener("visibilitychange", visible); poll();
-    return () => { disposed = true; window.clearTimeout(timer); controller?.abort(); window.removeEventListener("online", refresh); document.removeEventListener("visibilitychange", visible); };
-  }, [token]);
+    const start = async () => {
+      if (!preview) {
+        try {
+          const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+          cacheKey = "thanafus-results-v1-" + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+          const saved = JSON.parse(localStorage.getItem(cacheKey) || "null");
+          if (!stopped && saved?.success && Array.isArray(saved.results)) { playbackStarted.current = true; setPosition({ tick: 0, startedAt: new Date().toISOString() }); setList(saved); }
+        } catch { /* Storage is optional. */ }
+      }
+      if (!stopped) void poll();
+    };
+    void start();
+    return () => { stopped = true; controller.abort(); clearTimeout(timer); };
+  }, [token, preview, refreshKey]);
 
-  if (!token) return <main className="flex min-h-screen items-center justify-center bg-[#080817] p-8 text-center text-white"><div><h1 className="text-3xl font-black">Display token required</h1><p className="mt-3 text-white/60">Copy the secure display link from Config → Stream.</p></div></main>;
-  if (!state) return <main className="flex min-h-screen items-center justify-center bg-[#080817] text-white"><div className="text-center"><div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" /><p className="mt-4 text-white/60">Connecting to the Digital Stage…</p>{error && <p className="mt-2 text-sm text-red-300">{error}</p>}</div></main>;
-  return <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black"><StreamRenderer state={state} className="max-h-screen max-w-[177.777vh]" /><div className={`absolute right-4 top-4 z-50 rounded-full px-3 py-1 text-xs font-bold backdrop-blur ${connected ? "bg-emerald-500/15 text-emerald-200" : "bg-red-500/20 text-red-200"}`}>{connected ? "Connected" : `Reconnecting${error ? ` · ${error}` : ""}`}</div><button onClick={() => document.documentElement.requestFullscreen?.()} className="absolute bottom-4 right-4 z-50 rounded-lg bg-black/30 px-3 py-2 text-xs text-white/50 opacity-0 backdrop-blur transition hover:opacity-100 focus:opacity-100">Fullscreen</button></main>;
+  const state = list ? playlistState(list, position.tick, position.startedAt) : null;
+  const duration = state?.scene.durationSeconds;
+  useEffect(() => {
+    if (!duration) return;
+    const timer = setTimeout(() => setPosition(current => ({
+      tick: current.tick + 1, startedAt: new Date().toISOString(),
+    })), duration * 1000);
+    return () => clearTimeout(timer);
+  }, [duration, position]);
+  const content = state ? <StreamRenderer state={state} /> :
+    <div className="grid aspect-video place-items-center bg-[#080817] p-8 text-center text-white">
+      {error || (!preview && !token ? "Open the secure display link from Config → Stream." : "Loading published results…")}
+    </div>;
+  return <div className={preview ? "relative" : "relative flex min-h-screen items-center justify-center bg-black"}>
+    <div className={preview ? "w-full" : "w-full max-w-[177.777vh]"}>{content}</div>
+    {error && list && <p className="absolute right-3 top-3 rounded bg-black/60 px-3 py-1 text-xs text-amber-200">Offline · Playing cached results</p>}
+    {!preview && <button onClick={() => document.documentElement.requestFullscreen?.()} className="absolute bottom-4 right-4 rounded bg-black/30 px-3 py-2 text-xs text-white/50">Fullscreen</button>}
+  </div>;
 }
-

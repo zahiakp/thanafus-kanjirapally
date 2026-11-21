@@ -123,13 +123,7 @@ export default function Queue({ view }: { view: "admin" | "staff" | "public" }) 
     void load().catch(e => setError(e.message));
     return () => request.current?.abort();
   }, [load]);
-  useEffect(() => {
-    if (view !== "public" && view !== "staff") return;
-    const refresh = () => { if (document.visibilityState === "visible") void load().then(() => setError("")).catch(e => setError(e.message)); };
-    const timer = window.setInterval(refresh, 15_000);
-    window.addEventListener("focus", refresh);
-    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); };
-  }, [load, view]);
+
 
   useEffect(() => {
     const element = dialog.current;

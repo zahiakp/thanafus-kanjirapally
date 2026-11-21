@@ -20,8 +20,13 @@ export function reservedJudgeUsername(slot: JudgeSlot) {
   return `judge-${slot}`;
 }
 
+export function venueJudgeUsername(slot: JudgeSlot, venue: string) {
+  const suffix = venue.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return suffix ? `judge-${slot}-${suffix}` : "";
+}
+
 export function judgeSlotFromUsername(username: unknown): JudgeSlot | null {
   if (typeof username !== "string") return null;
-  const match = /^judge-([1-3])$/i.exec(username.trim());
+  const match = /^judge-([1-3])(?:-[a-z0-9]+(?:-[a-z0-9]+)*)?$/i.exec(username.trim());
   return match ? judgeSlotFromScope(match[1]) : null;
 }
