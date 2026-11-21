@@ -121,9 +121,6 @@ function ResultScene({ payload, startedAt }: { payload: Extract<StreamPublicStat
             <p className="mt-[2vh] text-[clamp(15px,2.1vw,34px)] font-semibold text-white/80">
               <RevealText text={winner.team} delay={.85} />
             </p>
-            {winner.mekhala && <p className="mt-[1vh] text-[clamp(13px,1.7vw,28px)] text-primary-200">
-              <RevealText text={winner.mekhala + " Mekhala"} delay={1.15} />
-            </p>}
           </motion.div>}
         </AnimatePresence>
       </div>
