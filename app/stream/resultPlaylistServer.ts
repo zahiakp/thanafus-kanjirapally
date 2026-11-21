@@ -1,3 +1,4 @@
+import { buildScoreBoard } from "../utils/scoreboard";
 import { createHash, timingSafeEqual } from "crypto";
 import pool from "../utils/mysqlDb";
 import { ApiError } from "../utils/apiAuth";
@@ -9,8 +10,8 @@ const runtime = globalThis as typeof globalThis & {
 };
 async function loadResults(): Promise<Cached> {
   const [rows]: any = await pool.execute(
-    "SELECT p.id, p.name, p.category, p.isGroup, r.student, r.code, r.rank, r.grade, r.point, s.name AS studentName, s.mekhala AS mekhala, c.name AS teamName " +
-    "FROM programs p LEFT JOIN results r ON r.program = p.id AND r.rank BETWEEN 1 AND 2 " +
+    "SELECT p.id, p.name, p.category, p.isGroup, r.id AS resultId, s.campus AS teamId, r.student, r.code, r.rank, r.grade, r.point, s.name AS studentName, s.mekhala AS mekhala, c.name AS teamName " +
+    "FROM programs p LEFT JOIN results r ON r.program = p.id " +
     "LEFT JOIN students s ON s.jamiaNo = SUBSTRING_INDEX(r.student, '&', 1) " +
     "LEFT JOIN campus c ON c.jamiaNo = s.campus " +
     "WHERE p.status = 'announced' ORDER BY p.id, r.rank DESC, s.name"
@@ -24,14 +25,20 @@ async function loadResults(): Promise<Cached> {
         category: categoryMap[String(row.category)] || String(row.category), winners: [] } };
       programs.set(id, result);
     }
-    if (row.rank != null) result.payload.winners.push({
+    if ([1, 2].includes(Number(row.rank))) result.payload.winners.push({
       name: String(row.studentName || "Code " + (row.code || row.student)) + (Number(row.isGroup) ? " & Party" : ""),
       team: String(row.teamName || ""), mekhala: String(row.mekhala || ""), rank: Number(row.rank), grade: String(row.grade || ""), points: Number(row.point || 0),
     });
   }
   const results = [...programs.values()];
-  return { expires: Date.now() + RESULT_REFRESH_MS, data: { success: true, version: createHash("sha256").update(JSON.stringify(results)).digest("hex"),
-    enabled: true, eventTitle: "", results } };
+  const [teams]: any = await pool.execute("SELECT jamiaNo AS id, name FROM campus ORDER BY name, jamiaNo");
+  const scorePrograms = results.map(result => ({ id: String(result.id), name: result.payload.program, category: result.payload.category }));
+  const board = buildScoreBoard(teams, scorePrograms, rows.filter((row: any) => row.resultId != null).map((row: any) => ({
+    id: String(row.resultId), teamId: String(row.teamId), programId: String(row.id), point: row.point, rank: row.rank,
+  })));
+  const scoreboard = { ...board, programs: scorePrograms };
+  return { expires: Date.now() + RESULT_REFRESH_MS, data: { success: true, version: createHash("sha256").update(JSON.stringify({ results, scoreboard })).digest("hex"),
+    enabled: true, eventTitle: "", results, scoreboard } };
 }
 export async function getResultPlaylist(token: string, preview: boolean): Promise<ResultPlaylist> {
   const [channels]: any = await pool.execute("SELECT enabled, event_title, public_token_hash FROM stream_channels WHERE slug = 'main' LIMIT 1");

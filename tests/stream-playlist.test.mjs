@@ -13,7 +13,9 @@ function load(path, imports = {}) {
   return exports;
 }
 const reveal = load("app/stream/resultReveal.ts");
-const playlist = load("app/stream/playlist.ts", { "./resultReveal": reveal });
+const scores = load("app/utils/scoreboard.ts");
+const tables = load("app/stream/scoreTable.ts");
+const playlist = load("app/stream/playlist.ts", { "./resultReveal": reveal, "./scoreTable": tables });
 test("playlist alternates every result with branding and loops, including empty and disabled states", () => {
   const list = { success: true, version: "v", eventTitle: "Test", enabled: true, results: [1, 2].map(id => ({ id, payload: { type: "result", program: String(id), winners: [] } })) };
   const scenes = [0,1,2,3,4].map(tick => playlist.playlistState(list, tick, "2026-11-21T00:00:00Z").scene);
@@ -29,8 +31,10 @@ test("server batches results, shares concurrent cache fills, refreshes correctio
   let rows = [{ id: 1, name: "Speech", category: "junior", isGroup: 0, rank: 1, studentName: "Winner", teamName: "Team", mekhala: "Kanjirappally" }];
   const server = load("app/stream/resultPlaylistServer.ts", {
     crypto,
+    "../utils/scoreboard": scores,
     "../utils/mysqlDb": { default: { execute: async sql => {
       if (sql.includes("stream_channels")) return [[{ enabled: 1, event_title: "Test", public_token_hash: crypto.createHash("sha256").update("valid").digest("hex") }]];
+      if (sql.includes("FROM campus ORDER")) return [[{id:"team",name:"Team"}]];
       assert.match(sql, /p.status = 'announced'/);
       queries++; await new Promise(resolve => setTimeout(resolve, 5)); return [rows];
     }}},
@@ -62,4 +66,36 @@ test("winner reveals show each tied first before each tied second and skip other
  assert.equal(reveal.resultDuration(winners),36);
  assert.deepEqual([0,3.9,4,11.9,12,20,28,35.9].map(t=>reveal.winnerIndexAt(t,4)),[-1,-1,0,0,1,2,3,3]);
  assert.equal(reveal.winnerIndexAt(100,0),-1);
+});
+
+test("table slides cap columns and rows and repeat overall totals across category pages", () => {
+ const programs = Array.from({length:6}, (_,i)=>({id:String(i),name:"Program "+i,category:i%2?"Junior":"Senior"}));
+ const teams = Array.from({length:8},(_,i)=>({id:String(i),name:"Team "+i,scores:{"0":[{id:"a"+i,point:10,kind:"first"}],"5":[{id:"b"+i,point:5,kind:"grade"}]}}));
+ const board = {programs, teams};
+ const pages = tables.scoreTablePages(board);
+ assert.equal(pages.length,4);
+ assert.deepEqual(pages.map(p=>p.programs.length),[5,5,1,1]);
+ assert.deepEqual(pages.map(p=>p.teams.length),[7,1,7,1]);
+ for(const page of pages) for(const team of page.teams) assert.equal(team.total,15);
+ const list = {success:true,enabled:true,eventTitle:"Test",version:"v",results:[{id:1,payload:{type:"result",winners:[]}}],scoreboard:board};
+ assert.deepEqual([0,1,2,3,4,5,6,7].map(t=>playlist.playlistState(list,t,"").scene.type),["result","idle","scoretable","scoretable","scoretable","scoretable","idle","result"]);
+ assert.equal(playlist.playlistState({...list,enabled:false},2,"").scene.type,"idle");
+});
+test("team points follow every five program results and the final partial batch", () => {
+  const list = {
+    success: true, enabled: true, eventTitle: "Test", version: "v",
+    results: Array.from({length:12}, (_,i)=>({id:i+1,payload:{type:"result",program:String(i+1),winners:[]}})),
+    scoreboard: {programs:[{id:"1",name:"Program",category:"Junior"}],teams:[{id:"a",name:"Team",scores:{}}]},
+  };
+  let count = 0;
+  const batches = [];
+  const seen = [];
+  for (let tick = 0; tick < 30; tick++) {
+    const scene = playlist.playlistState(list,tick,"").scene;
+    if (scene.type === "result") { count++; seen.push(scene.payload.program); }
+    if (scene.type === "scoretable") { batches.push(count); count=0; }
+  }
+  assert.deepEqual(batches,[5,5,2]);
+  assert.deepEqual(seen,Array.from({length:12},(_,i)=>String(i+1)));
+  assert.equal(playlist.playlistState(list,30,"").scene.payload.program,"1");
 });
