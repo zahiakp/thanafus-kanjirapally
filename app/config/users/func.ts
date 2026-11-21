@@ -1,3 +1,4 @@
+import { judgeSlotFromScope, judgeSlotFromUsername } from "../../utils/judges";
 import { ROOT_URL } from "../../data/func";
 
 export type AccessUser = {
@@ -31,11 +32,11 @@ export async function getAccessUsers(): Promise<AccessUser[]> {
     cache: "no-store",
   });
   const result = await readResponse<AccessUser[]>(response);
-  return result.data || [];
+  return (result.data || []).map(user => ({ ...user, judgeSlot: user.role === "judge" ? judgeSlotFromUsername(user.username) ?? judgeSlotFromScope(user.judgeSlot ?? user.campusId) : null }));
 }
 
-export async function createAccessUser(values: { username: string; password: string; role: string; judgeSlot?: number | null }) {
-  const response = await fetch(`${ROOT_URL}access/action.php?action=create`, {
+export async function createAccessUser(values: { username: string; password: string; role: string; judgeSlot?: number | null; venueId?: number }) {
+  const response = await fetch(values.judgeSlot ? "/api/users/judge" : `${ROOT_URL}access/action.php?action=create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -44,9 +45,10 @@ export async function createAccessUser(values: { username: string; password: str
       role: values.role,
       campusId: values.judgeSlot ? String(values.judgeSlot) : "",
       judgeSlot: values.judgeSlot || null,
+      venueId: values.venueId,
     }),
   });
-  return readResponse<never>(response);
+  return readResponse<{ id: number; username: string }>(response);
 }
 
 export async function updateAccessUser(

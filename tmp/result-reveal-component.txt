@@ -1,0 +1,62 @@
+function RevealText({ text, className = "", delay = 0 }: { text: string; className?: string; delay?: number }) {
+  const reduced = useReducedMotion();
+  return <span aria-label={text} className={className}>
+    {text.split(/\s+/).map((word, index) => <span key={index} aria-hidden="true" className="inline-block overflow-hidden align-bottom">
+      <motion.span className="inline-block whitespace-pre" initial={reduced ? false : { y: "110%", opacity: 0, filter: "blur(5px)" }}
+        animate={{ y: "0%", opacity: 1, filter: "blur(0px)" }}
+        transition={{ duration: reduced ? 0 : .55, delay: reduced ? 0 : delay + Math.min(index * .065, .8), ease: [.22, 1, .36, 1] }}>
+        {word + (index < text.split(/\s+/).length - 1 ? " " : "")}
+      </motion.span>
+    </span>)}
+  </span>;
+}
+
+function ResultScene({ payload, startedAt }: { payload: Extract<StreamPublicState["scene"]["payload"], { type: "result" }>; startedAt: string; duration: number }) {
+  const reduced = useReducedMotion();
+  const winners = useMemo(() => orderedWinners(payload.winners), [payload.winners]);
+  const [index, setIndex] = useState(-1);
+  useEffect(() => {
+    const update = () => setIndex(winnerIndexAt(Math.max(0, Date.now() - new Date(startedAt).getTime()) / 1000, winners.length));
+    update();
+    const timer = window.setInterval(update, 200);
+    return () => window.clearInterval(timer);
+  }, [startedAt, winners.length]);
+  const winner = winners[index];
+  const compact = index >= 0;
+  return <Frame eventTitle={payload.eventTitle}>
+    <div className="relative h-full w-full text-center">
+      <motion.div className="absolute inset-x-0 origin-top"
+        initial={false}
+        animate={{ top: compact ? "0%" : "32%", scale: compact ? .6 : 1 }}
+        transition={{ duration: reduced ? 0 : .85, ease: [.22, 1, .36, 1] }}>
+        <h1 className="mx-auto max-w-[95%] text-[clamp(28px,5vw,80px)] font-black leading-tight">
+          <RevealText text={payload.program} />
+        </h1>
+        <p className="mt-[1vh] text-[clamp(15px,2vw,32px)] font-semibold text-primary-200">
+          <RevealText text={payload.category} delay={.25} />
+        </p>
+      </motion.div>
+      <div className="absolute inset-x-0 bottom-0 top-[27%] flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          {winner && <motion.div key={index} className="w-full px-[2%]"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: reduced ? 0 : -15 }}
+            transition={{ duration: reduced ? 0 : .3 }}>
+            <div className={winner.rank === 1 ? "text-amber-300" : "text-slate-200"}>
+              <RevealText text={String(winner.rank).padStart(2, "0")} className="text-[clamp(45px,8vw,120px)] font-black leading-none" delay={.1} />
+            </div>
+            <h2 className="mx-auto mt-[1.5vh] max-w-[95%] break-words text-[clamp(25px,4vw,64px)] font-black leading-tight">
+              <RevealText text={winner.name} delay={.45} />
+            </h2>
+            <p className="mt-[2vh] text-[clamp(15px,2.1vw,34px)] font-semibold text-white/80">
+              <RevealText text={winner.team} delay={.85} />
+            </p>
+            {winner.mekhala && <p className="mt-[1vh] text-[clamp(13px,1.7vw,28px)] text-primary-200">
+              <RevealText text={winner.mekhala + " Mekhala"} delay={1.15} />
+            </p>}
+          </motion.div>}
+        </AnimatePresence>
+      </div>
+    </div>
+  </Frame>;
+}
+

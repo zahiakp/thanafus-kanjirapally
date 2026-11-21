@@ -45,7 +45,7 @@ return (
                                   </th>
                                   <td>{item.code || "-"}</td>
                                   <td className="font-bold uppercase">{item.student || "-"}</td>
-                                  <td>{item.campus || "-"}</td>
+                                  <td>{item.campus || "-"}{item.mekhala && <span className="ml-2 text-sm text-gray-500">· {item.mekhala}</span>}</td>
                                   <td className={`font-bold ${item.grade === "N/A" ? "text-red-500" : ""}`}>{item.grade === "N/A" ? "No" : item.grade || "-"}</td>
                                   <td>{item.point ?? "-"}</td>
                                 </tr>)) : (

@@ -40,7 +40,7 @@ const apiPermissions: Record<string, string[]> = {
 };
 
 const publicPages = ["/login", "/unauthorized", "/participant", "/stream/main"];
-const publicApis = ["/api/login", "/api/result/announced", "/api/result/campus", "/api/result/students", "/api/backend", "/api/stream/state", "/api/leaderboard"];
+const publicApis = ["/api/login", "/api/result/announced", "/api/result/campus", "/api/result/students", "/api/backend", "/api/stream/state", "/api/stream/results", "/api/leaderboard"];
 
 function permissionFor(pathname: string, map: Record<string, string[]>) {
   return Object.entries(map)
