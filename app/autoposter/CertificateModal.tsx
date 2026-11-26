@@ -6,6 +6,7 @@ import { jsPDF } from "jspdf";
 import Modal from "../../components/common/Modal";
 import { categoryMap } from "../data/branding";
 import { showMessage } from "../../components/common/CusToast";
+import certificateTemplate from "../../public/certificate/Copy of thanfus certificate (2).png";
 
 type CertificateResult = {
   id?: string | number;
@@ -26,20 +27,20 @@ type CertificateAction = "png" | "pdf" | "print";
 
 const certificateForRank = {
   1: {
-    background: "/certificate/merit-certificate.jpg",
+    background: certificateTemplate.src,
     place: "First",
     pdfFormat: "a5" as const,
     paperName: "A5",
-    widthMm: 148,
-    heightMm: 210,
+    widthMm: 210,
+    heightMm: 148,
   },
   2: {
-    background: "/certificate/merit-certificate.jpg",
+    background: certificateTemplate.src,
     place: "Second",
     pdfFormat: "a5" as const,
     paperName: "A5",
-    widthMm: 148,
-    heightMm: 210,
+    widthMm: 210,
+    heightMm: 148,
   },
 } as const;
 
@@ -47,7 +48,10 @@ function loadImage(source: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Could not load the certificate template"));
+    image.onerror = () => {
+      console.error("[Certificate] Template image failed to load", { source });
+      reject(new Error("Could not load the certificate template. Refresh the page after deploying the latest build."));
+    };
     image.src = source;
   });
 }
@@ -90,7 +94,7 @@ async function renderCertificate(program: CertificateProgram, winner: Certificat
   if (!context) throw new Error("Certificate canvas is unavailable");
 
   await document.fonts.ready;
-  const fontFamily = window.getComputedStyle(document.body).fontFamily || "Arial, Helvetica, sans-serif";
+  const fontFamily = '"Times New Roman", Times, serif';
 
   context.drawImage(background, 0, 0, canvas.width, canvas.height);
   context.textAlign = "left";
@@ -105,11 +109,7 @@ async function renderCertificate(program: CertificateProgram, winner: Certificat
   };
   const name = displayLabel(String(winner.student || "Participant"));
   const team = displayLabel(String(winner.campus || "Team"));
-  const grade = String(winner.grade || "N/A").trim().toUpperCase();
-  const rawCategory = categoryMap[String(program.category || "")] || String(program.category || "");
-  const category = displayLabel(rawCategory.replace(/\s+(BOYS|GIRLS)$/i, ""));
   const programName = displayLabel(String(program.name || "Competition"));
-  const madrasa = /\bMADRASA\s*$/i.test(team) ? team : team + " Madrasa";
 
   type TextRun = { text: string; highlight?: boolean };
   type TextWord = TextRun & { width: number; gap: number };
@@ -118,25 +118,26 @@ async function renderCertificate(program: CertificateProgram, winner: Certificat
       { text: "This certificate is proudly presented to" },
       { text: name, highlight: true },
       { text: "of" },
-      { text: madrasa, highlight: true },
-      { text: "for securing" },
-      { text: template.place.toLowerCase(), highlight: true },
-      { text: " prize (Grade: " + grade + ") in " },
-      { text: category, highlight: true },
-      { text: " " },
+      { text: team, highlight: true },
+      { text: "in recognition of securing" },
+      { text: template.place.toUpperCase() + " PRIZE", highlight: true },
+      { text: "in" },
       { text: programName, highlight: true },
-      { text: " at Thanafus 2026. In recognition of outstanding performance, dedication, and achievement we wish you continued success and excellence in all your future endeavours." },
+      { text: "at THANAFUS 2026 – STATE LEVEL MADRASAH ARTS & LITERARY FEST, organized by Dakshina Kerala Lajnatul Muallimeen State Committee." },
+    ],
+    [
+      { text: "Your outstanding performance, dedication and achievement are highly appreciated. We wish you continued success and excellence in all your future endeavours." },
     ],
   ];
 
-  const maximumWidth = canvas.width * 0.70;
-  const startY = canvas.height * 0.445;
-  const maximumBottom = canvas.height * 0.735;
-  let fontSize = canvas.width * 0.019;
+  const maximumWidth = canvas.width * 0.66;
+  const startY = canvas.height * 0.515;
+  const maximumBottom = canvas.height * 0.805;
+  let fontSize = canvas.width * 0.018;
   let lines: TextWord[][] = [];
   let lineHeight = fontSize * 1.4;
   const setFont = (highlight?: boolean) => {
-    context.font = (highlight ? "700 " : "400 ") + fontSize + "px " + fontFamily;
+    context.font = "italic " + (highlight ? "700 " : "400 ") + fontSize + "px " + fontFamily;
   };
 
   // Measure highlighted words in their actual font before wrapping and centering.
@@ -161,6 +162,7 @@ async function renderCertificate(program: CertificateProgram, winner: Certificat
         }
       }
       if (line.length) lines.push(line);
+      if (paragraph !== paragraphs[paragraphs.length - 1]) lines.push([]);
     }
 
     lineHeight = fontSize * 1.4;
@@ -218,7 +220,7 @@ function CertificateModal({ data, close }: { data: { program: CertificateProgram
 
       if (action === "pdf") {
         const pdf = new jsPDF({
-          orientation: "portrait",
+          orientation: "landscape",
           unit: "mm",
           format: rendered.template.pdfFormat,
           compress: true,
@@ -242,7 +244,7 @@ function CertificateModal({ data, close }: { data: { program: CertificateProgram
         printWindow.document.open();
         printWindow.document.write(
           "<!doctype html><html><head><title>" + baseName + "</title>" +
-          "<style>@page{size:" + rendered.template.paperName + " portrait;margin:0}" +
+          "<style>@page{size:" + rendered.template.paperName + " landscape;margin:0}" +
           "html,body{margin:0;padding:0;width:" + rendered.template.widthMm + "mm;height:" + rendered.template.heightMm + "mm;background:#fff}" +
           "body{-webkit-print-color-adjust:exact;print-color-adjust:exact;overflow:hidden}" +
           "img{display:block;width:" + rendered.template.widthMm + "mm;height:" + rendered.template.heightMm + "mm;object-fit:fill}</style>" +
@@ -284,7 +286,7 @@ function CertificateModal({ data, close }: { data: { program: CertificateProgram
         </div>
 
         <p className="mb-4 text-sm text-gray-500">
-          Both prizes use the same merit certificate with rank and grade in the text. First prize is A5 and second prize is A6. Choose an image, PDF, or direct print.
+          Both prizes use the achievement certificate with the winner, madrasa, prize and competition in paragraph form. Both prizes are A5. Choose an image, PDF, or direct print.
         </p>
 
         <div className="space-y-3">
@@ -300,7 +302,7 @@ function CertificateModal({ data, close }: { data: { program: CertificateProgram
                   <div className="min-w-0">
                     <p className="truncate font-bold uppercase text-gray-900">{winner.student || "Participant"}</p>
                     <p className="truncate text-sm text-gray-500">
-                      {winner.campus || "Team"} · {winner.grade || "N/A"} Grade · {rank === 1 ? "A5" : "A6"}
+                      {winner.campus || "Team"} · {winner.grade || "N/A"} Grade · A5
                     </p>
                   </div>
                 </div>
